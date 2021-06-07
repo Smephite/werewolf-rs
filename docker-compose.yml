@@ -1,12 +1,12 @@
 version: "3.9"
 services:
     server:
-        image: werewolf-rs/server
+        image: werewolfrs/server
         build: 
             context: .
             dockerfile: ./Dockerfile_Server
     client:
-        image: werewolf-rs/client
+        image: werewolfrs/client
         build:
             context: .
             dockerfile: ./Dockerfile_Client
