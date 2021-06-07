@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 werewolf-rs = {path = "../werewolf-rs"}
-yew = "0.17"
+yew = "0.18"

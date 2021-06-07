@@ -1,7 +1,8 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+
+#![allow(incomplete_features)]
+#![feature(specialization)]
+#[macro_use]
+extern crate serde;
+
+pub mod network_manager;
+pub mod packets;
