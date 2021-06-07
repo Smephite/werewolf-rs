@@ -1,0 +1,32 @@
+FROM rust:1.51 as base
+
+# Build werewolf-rs
+
+RUN USER=root cargo new --bin werewolf-rs
+WORKDIR /werewolf-rs
+COPY ./werewolf-rs/Cargo.toml .
+RUN cargo build --release
+
+COPY ./werewolf-rs .
+RUN cargo build --release
+
+FROM base as client
+# Build client
+
+WORKDIR /
+RUN user=root cargo new --bin client
+WORKDIR /client
+COPY ./client/Cargo.toml .
+RUN cargo build --release
+
+COPY ./client .
+RUN cargo build --release
+
+
+FROM debian:stable as client_executeable
+
+#Copy executable
+COPY --from=client /client/target/release/werewolf-rs-client .
+
+#Set the startup command
+CMD ["./werewolf-rs-client"]
