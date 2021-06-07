@@ -13,7 +13,7 @@ COPY ./Cargo.toml .
 COPY ./werewolf-rs/Cargo.toml ./werewolf-rs
 RUN cargo build --release -p werewolf-rs
 
-COPY ./werewolf-rs ./werewolf-rs
+COPY ./werewolf-rs/ ./werewolf-rs/
 RUN cargo build --release -p werewolf-rs
 
 FROM base as client
@@ -23,11 +23,9 @@ FROM base as client
 COPY ./client/Cargo.toml ./client
 RUN cargo build --release -p werewolf-rs-client
 
-COPY ./client ./client
+COPY ./client/ ./client/
 RUN cargo build --release -p werewolf-rs-client
-
-
-FROM debian:stable as client_executeable
+FROM debian:stable
 
 #Copy executable
 COPY --from=client /werewolf-rs/target/release/werewolf-rs-client .

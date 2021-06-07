@@ -9,5 +9,5 @@ use werewolf_rs::network_manager::NetworkManager;
 fn main() {
     let manager = ServerNetworkManager{};
 
-    let _ = manager.send_packet(&Packet::ToClient(ToClient::Ping("test")));
+    let _ = manager.send_packet(&Packet::ToClient(ToClient::Ping("test!")));
 }

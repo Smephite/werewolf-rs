@@ -12,7 +12,7 @@ COPY ./Cargo.toml .
 COPY ./werewolf-rs/Cargo.toml ./werewolf-rs
 RUN cargo build --release -p werewolf-rs
 
-COPY ./werewolf-rs ./werewolf-rs
+COPY ./werewolf-rs/ ./werewolf-rs/
 RUN cargo build --release -p werewolf-rs
 
 FROM base as server
@@ -22,14 +22,14 @@ FROM base as server
 COPY ./server/Cargo.toml ./server
 RUN cargo build --release -p werewolf-rs-server
 
-COPY ./server ./server
+COPY ./server/ ./server/
 RUN cargo build --release -p werewolf-rs-server
 
 
-FROM debian:stable as server_executeable
+FROM debian:stable
 
 #Copy executable
 COPY --from=server /werewolf-rs/target/release/werewolf-rs-server .
 
 #Set the startup command
-CMD ["./werewolf-rs-client"]
+CMD ["./werewolf-rs-server"]
