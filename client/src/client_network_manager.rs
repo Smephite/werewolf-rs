@@ -6,16 +6,11 @@ impl ClientNetworkManager {
     pub fn new() -> Self {
         Self
     }
-    
 }
 
 impl NetworkManager for ClientNetworkManager {
-    fn send_raw(&self, data: &str)
-    {
+    fn send_raw(&self, data: &str) {
         println!("Client send: {}", data);
         let _ = self.receive_raw(data);
     }
-
-
-
 }
