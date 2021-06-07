@@ -5,14 +5,14 @@ name = "werewolf-rs"
 version = "0.1.0"
 
 [[package]]
-name = "werewolf_rs_client"
+name = "werewolf-rs-client"
 version = "0.1.0"
 dependencies = [
  "werewolf-rs",
 ]
 
 [[package]]
-name = "werewolf_rs_server"
+name = "werewolf-rs-server"
 version = "0.1.0"
 dependencies = [
  "werewolf-rs",
