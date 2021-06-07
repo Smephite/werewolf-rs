@@ -1,5 +1,5 @@
 FROM rust:1.51 as base
-
+RUN rustup update nightly; rustup default nightly;
 # Build werewolf-rs
 
 RUN USER=root cargo new --bin werewolf-rs
