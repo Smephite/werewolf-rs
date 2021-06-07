@@ -1,5 +1,5 @@
 [package]
-name = "werewolf_rs_server"
+name = "werewolf-rs-server"
 version = "0.1.0"
 authors = ["Kai Berszin <mail@kaibersz.in>"]
 edition = "2018"
