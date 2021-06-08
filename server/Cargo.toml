@@ -8,3 +8,7 @@ edition = "2018"
 
 [dependencies]
 werewolf-rs = {path = "../werewolf-rs"}
+tokio = { version = "1.6.1", features = ["full"] }
+async-tungstenite = { version = "0.13.1", features = ["tokio-runtime"] }
+futures = "0.3.15"
+rand = "0.8.3"

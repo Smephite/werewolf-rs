@@ -1,16 +1,23 @@
+use anyhow::Result;
+use serde::{Serialize, Deserialize};
+
+pub fn serialize_packet<P: Serialize>(packet: &P) -> Result<String> {
+    let raw: String = serde_json::ser::to_string(packet)?;
+    Ok(raw)
+}
+
+pub fn deserialize_packet<'a, P: Deserialize<'a>>(raw: &'a str) -> Result<P> {
+    let packet: P = serde_json::from_str(raw)?;
+    Ok(packet)
+}
+
+
 #[derive(Serialize, Deserialize, Debug)]
-pub enum Packet<'a> {
-    #[serde(borrow)]
-    ToServer(ToServer<'a>),
-    ToClient(ToClient<'a>),
+pub enum ToServer {
+    Pong(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum ToServer<'a> {
-    Pong(&'a str),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub enum ToClient<'a> {
-    Ping(&'a str),
+pub enum ToClient {
+    Ping(String),
 }

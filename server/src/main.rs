@@ -1,13 +1,23 @@
 #![allow(incomplete_features)]
 #![feature(specialization)]
-pub mod server_network_manager;
+mod game_lobby;
+mod lobby_manager;
 
-use crate::server_network_manager::ServerNetworkManager;
-use werewolf_rs::network_manager::NetworkManager;
-use werewolf_rs::packets::packet::*;
+use std::env;
+use tokio::{net::TcpListener, runtime::Builder};
 
 fn main() {
-    let manager = ServerNetworkManager {};
+    let runtime = Builder::new_multi_thread().build().unwrap();
+    runtime.block_on(async {
+        let address =
+            env::var("WEREWOLF_WEBSOCKET_ADDRESS").unwrap_or("127.0.0.1:8080".to_string());
+        let listener = TcpListener::bind(address).await.unwrap();
 
-    let _ = manager.send_packet(&Packet::ToClient(ToClient::Ping("test!")));
+        while let Ok((stream, _)) = listener.accept().await {
+            match async_tungstenite::tokio::accept_async(stream).await {
+                Err(_) => {}
+                Ok(ws_stream) => {}
+            }
+        }
+    });
 }
