@@ -1,5 +1,3 @@
-#![allow(incomplete_features)]
-#![feature(specialization)]
 mod game_lobby;
 mod lobby_manager;
 

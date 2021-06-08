@@ -12,11 +12,11 @@ pub fn deserialize_packet<'a, P: Deserialize<'a>>(raw: &'a str) -> Result<P> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum ToServer {
+pub enum PacketToServer {
     Pong(String),
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub enum ToClient {
+pub enum PacketToClient {
     Ping(String),
 }
