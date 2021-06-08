@@ -6,7 +6,7 @@ pub enum Route {
     #[at("/create")]
     CreateGame,
     #[at("/game/:id")]
-    Game{id: u64},
+    Game{id: String},
     #[at("/")]
     Home,
     #[at("/404")]
@@ -16,18 +16,14 @@ pub enum Route {
 
 enum Msg {}
 
-struct Model {
-    // `ComponentLink` is like a reference to a component.
-    // It can be used to send messages to the component
-    link: ComponentLink<Self>
-}
+struct Model {}
 
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
 
-    fn create(_props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        Self { link }
+    fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
+        Self { }
     }
 
     fn update(&mut self, _: Self::Message) -> ShouldRender {
@@ -52,7 +48,7 @@ impl Component for Model {
                     <div class="content has-text-centered">
                         <p>
                             <strong><a href="https://github.com/Smephite/werewolf-rs">{"werewolf-rs"}</a></strong>
-                            {" was made with 💖 and 🍺"}
+                            {" was made with ❤️ and 🍺"}
                         </p>
                     </div>
                 </footer>
@@ -67,7 +63,7 @@ impl Model {
         html! {
             <nav class="navbar is-primary" role="navigation">
                 <div class="navbar-brand">
-                    {go_home(html!{
+                    {go_to(Route::Home, html!{
                         <>
                         <span class="is-size-3" style="padding-right: 0px">{"werewolf"}</span><span style="padding-left: 0px" class="is-size-5">{"-rs"}</span>
                         </>
@@ -81,17 +77,23 @@ impl Model {
 fn switch(routes: &Route) -> Html {
     match routes {
         Route::Home => {
-            html! {<p> {"Home"}</p>}
+            pages::home::render()
+        },
+        Route::Game { id } => {
+            pages::game::render(id)
+        },
+        Route::CreateGame => {
+            pages::create_game::render()
         }
-        Route::NotFound | _ => {
+        Route::NotFound => {
             pages::not_found::render()
         }
     }
 }
 
-pub fn go_home(html: Html, classes: Vec<&str>) -> Html {
+pub fn go_to(route: Route, html: Html, classes: Vec<&str>) -> Html {
     html!{
-        <Link<Route> route=Route::Home classes=classes!(classes.iter().map(|&s| String::from(s)).collect::<Vec<String>>())>{html}</Link<Route>>
+        <Link<Route> route=route classes=classes!(classes.iter().map(|&s| String::from(s)).collect::<Vec<String>>())>{html}</Link<Route>>
     }
 }
 
