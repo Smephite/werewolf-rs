@@ -13,3 +13,5 @@ async-tungstenite = { version = "0.13.1", features = ["tokio-runtime"] }
 futures = "0.3.15"
 rand = "0.8.3"
 anyhow = "1.0.40"
+log = "0.4.*"
+simplelog = "^0.10.0"
