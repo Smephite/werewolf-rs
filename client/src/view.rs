@@ -1,12 +1,12 @@
+use crate::pages;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use crate::pages;
 #[derive(::yew_router::Routable, PartialEq, Clone, Debug)]
 pub enum Route {
     #[at("/create")]
     CreateGame,
     #[at("/game/:id")]
-    Game{id: String},
+    Game { id: String },
     #[at("/")]
     Home,
     #[at("/404")]
@@ -23,7 +23,7 @@ impl Component for Model {
     type Properties = ();
 
     fn create(_props: Self::Properties, _link: ComponentLink<Self>) -> Self {
-        Self { }
+        Self {}
     }
 
     fn update(&mut self, _: Self::Message) -> ShouldRender {
@@ -57,9 +57,8 @@ impl Component for Model {
     }
 }
 
-
 impl Model {
-    fn view_nav(&self) -> Html {        
+    fn view_nav(&self) -> Html {
         html! {
             <nav class="navbar is-primary" role="navigation">
                 <div class="navbar-brand">
@@ -76,23 +75,15 @@ impl Model {
 
 fn switch(routes: &Route) -> Html {
     match routes {
-        Route::Home => {
-            pages::home::render()
-        },
-        Route::Game { id } => {
-            pages::game::render(id)
-        },
-        Route::CreateGame => {
-            pages::create_game::render()
-        }
-        Route::NotFound => {
-            pages::not_found::render()
-        }
+        Route::Home => pages::home::render(),
+        Route::Game { id } => pages::game::render(id),
+        Route::CreateGame => pages::create_game::render(),
+        Route::NotFound => pages::not_found::render(),
     }
 }
 
 pub fn go_to(route: Route, html: Html, classes: Vec<&str>) -> Html {
-    html!{
+    html! {
         <Link<Route> route=route classes=classes!(classes.iter().map(|&s| String::from(s)).collect::<Vec<String>>())>{html}</Link<Route>>
     }
 }

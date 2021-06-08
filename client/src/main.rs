@@ -6,8 +6,8 @@ use crate::client_network_manager::ClientNetworkManager;
 use werewolf_rs::network_manager::NetworkManager;
 use werewolf_rs::packets::packet::*;
 
-mod view;
 mod pages;
+mod view;
 
 fn main() {
     let manager = ClientNetworkManager {};

@@ -1,3 +1,5 @@
 use yew::prelude::*;
 
-pub fn render() -> Html{html!{"Home"}}
+pub fn render() -> Html {
+    html! {"Home"}
+}
