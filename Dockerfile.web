@@ -19,7 +19,7 @@ COPY ./client/Cargo.toml ./client
 RUN cargo build --release -p werewolf-rs-client
 
 COPY ./client/ ./client/
-WORKDIR ./client
+WORKDIR /werewolf-rs/client
 RUN trunk build --release
 
 FROM nginx
