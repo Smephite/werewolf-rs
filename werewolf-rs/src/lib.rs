@@ -1,3 +1,3 @@
 extern crate serde;
 
-pub mod packets;
+pub mod packet;
