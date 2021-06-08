@@ -1,3 +1,5 @@
 build:
   docker:
-    web: Dockerfile_Client
+    web: Dockerfile.web
+run:
+  web: trunk serve --release --port $PORT
