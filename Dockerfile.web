@@ -1,12 +1,4 @@
-FROM rust:1.51 as base
-RUN rustup update nightly; rustup default nightly;
-# Build werewolf-rs
-FROM base as trunk
-
-RUN user=root cargo install trunk wasm-bindgen-cli
-RUN user=root rustup target add wasm32-unknown-unknown
-
-FROM trunk as werewolf_trunk
+FROM werewolfrs/trunk:latest as base
 
 WORKDIR /werewolf-rs
 
@@ -21,9 +13,7 @@ RUN cargo build --release -p werewolf-rs
 COPY ./werewolf-rs/ ./werewolf-rs/
 RUN cargo build --release -p werewolf-rs
 
-FROM werewolf_trunk as client
 # Build client
-
 
 COPY ./client/Cargo.toml ./client
 RUN cargo build --release -p werewolf-rs-client
@@ -32,4 +22,11 @@ COPY ./client/ ./client/
 WORKDIR ./client
 RUN trunk build --release
 
-CMD ["trunk", "serve", "--release"]
+FROM nginx
+RUN curl -L https://github.com/a8m/envsubst/releases/download/v1.2.0/envsubst-`uname -s`-`uname -m` -o /usr/local/bin/envsubst && chmod +x /usr/local/bin/envsubst
+
+COPY --from=client /werewolf-rs/client/dist/ /usr/share/nginx/html
+COPY ./nginx/nginx.conf /etc/nginx/conf.d/default.conf.template
+
+
+CMD /bin/bash -c "/usr/local/bin/envsubst '\${PORT:-80}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf" && nginx -g 'daemon off;'
