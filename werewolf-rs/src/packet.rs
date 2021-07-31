@@ -14,7 +14,7 @@ pub fn deserialize_packet<'a, P: Deserialize<'a>>(raw: &'a str) -> Result<P> {
 #[derive(Serialize, Deserialize, Debug)]
 pub enum PacketToServer {
     CreateNewLobby,
-    JoinLobby(usize),
+    JoinLobby(u64),
     CloseConnection,
     ReceivedInvalidData,
     Unknown,
