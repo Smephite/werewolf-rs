@@ -22,6 +22,7 @@ pub enum PacketToServer {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum PacketToClient {
+    UnknownLobbyId,
     Ping(String),
     CloseConnection,
     ReceivedInvalidData,
