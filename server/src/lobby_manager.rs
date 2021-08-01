@@ -75,8 +75,7 @@ impl LobbyManager {
                 },
                 LobbyManagerEvent::CreateNewLobby { ws_read, ws_write } => {
                     let new_id = self.generate_lobby_id();
-                    let mut lobby = GameLobby::new(new_id, sender.clone());
-                    let lobby_sender = lobby.get_sender();
+                    let (mut lobby, lobby_sender) = GameLobby::new(new_id, sender.clone());
                     self.lobby_channels.insert(new_id, lobby_sender.clone());
                     tokio::spawn(async move {
                         lobby.run().await;
