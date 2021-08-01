@@ -1,52 +1,23 @@
-use std::fmt::Debug;
-
-use crate::util::send_logging;
-
-use super::{
-    lobby_manager::LobbyManagerEvent,
-    util::{WsReceiver, WsSender},
+use crate::util::{
+    WsReceiver,
+    WsSender,
+    send_logging
+};
+use super::GameLobbyEvent;
+use werewolf_rs::packet::{
+    PacketToClient,
+    PacketToServer
 };
 use futures::{SinkExt, StreamExt};
 use tokio::{select, sync::mpsc};
-use werewolf_rs::packet::{PacketToClient, PacketToServer};
-
-pub enum GameLobbyEvent {
-    NewConnection {
-        ws_read: WsReceiver,
-        ws_write: WsSender,
-    },
-}
 
 pub enum ClientEvent {}
-
-pub struct GameLobby {
-    id: u64,
-    lobby_manager_sender: mpsc::Sender<LobbyManagerEvent>,
-    receiver: mpsc::Receiver<GameLobbyEvent>,
-    sender: mpsc::Sender<GameLobbyEvent>,
-}
 
 pub struct ClientManager {
     packet_send: mpsc::Sender<PacketToClient>,
     packet_receive: mpsc::Receiver<PacketToServer>,
     event_receive: mpsc::Receiver<ClientEvent>,
     game_lobby_send: mpsc::Sender<GameLobbyEvent>,
-}
-
-impl GameLobby {
-    pub fn new(id: u64, lobby_manager_sender: mpsc::Sender<LobbyManagerEvent>) -> (Self, mpsc::Sender<GameLobbyEvent>) {
-        let (sender, receiver) = mpsc::channel(8);
-        (GameLobby {
-            id,
-            lobby_manager_sender,
-            receiver,
-            sender: sender.clone(),
-        }, sender)
-    }
-
-    pub async fn run(&mut self) {
-        while let Some(event) = self.receiver.recv().await {}
-    }
 }
 
 impl ClientManager {
@@ -62,7 +33,7 @@ impl ClientManager {
         let (event_sender, event_receiver) = mpsc::channel(8);
         let (packet_send, mut packet_send_listener) = mpsc::channel(8);
         let (packet_receive_writer, packet_receive) = mpsc::channel(8);
-        //The websocket receiving demon
+        //The websocket receiving daemon
         tokio::spawn(async move {
             while let Some(packet) = ws_rec.next().await {
                 if let Err(_) = packet_receive_writer.send(packet).await {
@@ -71,7 +42,7 @@ impl ClientManager {
                 }
             }
         });
-        //The websocket sending demon
+        //The websocket sending daemon
         tokio::spawn(async move {
             while let Some(packet) = packet_send_listener.recv().await {
                 match packet {
@@ -79,6 +50,7 @@ impl ClientManager {
                         if let Err(e) = ws_send.close().await {
                             error!("Error closing connection to client: {}", e);
                         }
+                        break;
                     }
                     _ => {
                         send_logging(&mut ws_send, packet).await;
@@ -98,7 +70,7 @@ impl ClientManager {
     }
 
     /*
-    Runs the player manager
+    Runs the player manager. This handles all incoming packets from the client, as well as events/requests sent to it over its channel
     */
     async fn run(&mut self) {
         loop {
@@ -123,19 +95,6 @@ impl ClientManager {
                         }
                     }
                 }
-            }
-        }
-    }
-}
-
-impl Debug for GameLobbyEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::NewConnection {
-                ws_read: _,
-                ws_write: _,
-            } => {
-                write!(f, "GameLobbyEvent::NewConnection")
             }
         }
     }

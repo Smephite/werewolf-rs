@@ -1,5 +1,13 @@
-use super::{game_lobby::GameLobbyEvent, util::WsSender};
-use crate::{game_lobby::GameLobby, util::WsReceiver};
+use crate::{
+    lobby::{
+        GameLobby,
+        GameLobbyEvent
+    },
+    util::{
+        WsSender,
+        WsReceiver
+    }
+};
 use rand::Rng;
 use std::collections::HashMap;
 use std::fmt::Debug;
