@@ -16,14 +16,13 @@ pub enum GameLobbyEvent {
         ws_write: WsSender,
     },
     ConnectionLost {
-        client_id: u64
-    }
+        client_id: u64,
+    },
 }
 
 struct Client {
     sender: mpsc::Sender<ClientEvent>,
 }
-
 
 pub struct GameLobby {
     id: u64,
@@ -57,13 +56,19 @@ impl GameLobby {
             match event {
                 GameLobbyEvent::NewConnection { ws_read, ws_write } => {
                     let client_id = generate_random_id(&self.clients);
-                    let (mut client_manager, client_sender) =
-                        ClientManager::new(client_id, ws_write, ws_read, self.sender.clone()).await;
+                    let (mut client_manager, client_sender) = ClientManager::new(
+                        self.id,
+                        client_id,
+                        ws_write,
+                        ws_read,
+                        self.sender.clone(),
+                    )
+                    .await;
                     tokio::spawn(async move {
                         client_manager.run().await;
                     });
                     let client = Client {
-                        sender: client_sender
+                        sender: client_sender,
                     };
                     self.clients.insert(client_id, client);
                 }

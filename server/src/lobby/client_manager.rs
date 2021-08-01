@@ -1,26 +1,49 @@
+use std::collections::HashMap;
+
 use super::GameLobbyEvent;
-use crate::util::{send_logging, WsReceiver, WsSender};
+use crate::util::{generate_random_id, send_logging, WsReceiver, WsSender};
 use futures::{SinkExt, StreamExt};
-use tokio::{select, sync::mpsc};
-use werewolf_rs::packet::{PacketToClient, PacketToServer};
+use tokio::{
+    select,
+    sync::{mpsc, oneshot},
+};
+use werewolf_rs::packet::{
+    InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient, PacketToServer,
+};
 
-pub enum ClientEvent {}
+pub enum ClientEvent {
+    /*Create an interaction and send the packet to the client.
+    The interaction ID is sent back over the provided oneshot channel*/
+    CreateInteraction(
+        InteractionRequest,
+        mpsc::Sender<InteractionResponse>,
+        oneshot::Sender<u64>,
+    ),
+    //Send an interaction followup for the interaction with the given id
+    FollowupInteraction(u64, InteractionFollowup),
+    CloseInteraction(u64),
+}
 
+/*
+A struct that manages the connection to one client in a game lobby.
+It manages asynchronously sending and receiving packets from the client (using 2 additional tasks).
+*/
 pub struct ClientManager {
     packet_send: mpsc::Sender<PacketToClient>,
     packet_receive: mpsc::Receiver<PacketToServer>,
     event_receive: mpsc::Receiver<ClientEvent>,
     game_lobby_send: mpsc::Sender<GameLobbyEvent>,
 
-    client_id: u64
+    client_id: u64,
+    interactions: HashMap<u64, mpsc::Sender<InteractionResponse>>,
 }
 
 impl ClientManager {
     /*
     Creates a new PlayerManager with a channel to send events to it
-    This creates 2 tasks for sending/receiving on the actual websocket connection
     */
     pub async fn new(
+        lobby_id: u64,
         client_id: u64,
         mut ws_send: WsSender,
         mut ws_rec: WsReceiver,
@@ -40,6 +63,14 @@ impl ClientManager {
         });
         //The websocket sending daemon
         tokio::spawn(async move {
+            send_logging(
+                &mut ws_send,
+                PacketToClient::JoinedLobby {
+                    lobby_id,
+                    client_id,
+                },
+            )
+            .await;
             while let Some(packet) = packet_send_listener.recv().await {
                 match packet {
                     PacketToClient::CloseConnection => {
@@ -60,7 +91,8 @@ impl ClientManager {
                 packet_receive,
                 packet_send,
                 game_lobby_send,
-                client_id
+                client_id,
+                interactions: HashMap::new(),
             },
             event_sender,
         )
@@ -71,6 +103,7 @@ impl ClientManager {
     */
     pub async fn run(&mut self) {
         loop {
+            //Wait for packets from the client or events
             select! {
                 event = self.event_receive.recv() => {
                     match event {
@@ -78,7 +111,26 @@ impl ClientManager {
                             return;
                         }
                         Some(event) => {
-
+                            match event {
+                                ClientEvent::CreateInteraction(data, response_channel, id_oneshot) => {
+                                    let interaction_id = generate_random_id(&self.interactions);
+                                    self.interactions.insert(interaction_id, response_channel);
+                                    id_oneshot.send(interaction_id).ok();
+                                    self.packet_send.send(PacketToClient::InteractionRequest {
+                                        interaction_id,
+                                        data
+                                    }).await.unwrap();
+                                }
+                                ClientEvent::FollowupInteraction(interaction_id, data) => {
+                                    self.packet_send.send(PacketToClient::InteractionFollowup {
+                                        interaction_id,
+                                        data
+                                    }).await.unwrap();
+                                }
+                                ClientEvent::CloseInteraction(interaction_id) => {
+                                    self.packet_send.send(PacketToClient::InteractionClose { interaction_id }).await.unwrap();
+                                }
+                            }
                         }
                     }
                 }
@@ -87,9 +139,29 @@ impl ClientManager {
                         None => {
                             //Notify the game lobby that the client lost its connection
                             self.game_lobby_send.send(GameLobbyEvent::ConnectionLost { client_id: self.client_id }).await.unwrap();
+                            return;
                         }
                         Some(packet) => {
-
+                            match packet {
+                                PacketToServer::CloseConnection => {
+                                    self.game_lobby_send.send(GameLobbyEvent::ConnectionLost { client_id: self.client_id }).await.unwrap();
+                                }
+                                PacketToServer::InteractionResponse { interaction_id, data } => {
+                                    match self.interactions.get(&interaction_id) {
+                                        None => {
+                                            self.packet_send.send(PacketToClient::ReceivedInvalidData).await.unwrap();
+                                        }
+                                        Some(channel) => {
+                                            if let Err(e) = channel.send(data).await {
+                                                error!("Unable to send back interaction response: {}", e);
+                                            }
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    self.packet_send.send(PacketToClient::ReceivedInvalidData).await.unwrap();
+                                }
+                            }
                         }
                     }
                 }
