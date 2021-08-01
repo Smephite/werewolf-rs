@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
-mod lobby_manager;
 mod lobby;
+mod lobby_manager;
 mod util;
 
 use anyhow::Error;

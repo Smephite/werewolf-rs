@@ -1,14 +1,7 @@
 use crate::{
-    lobby::{
-        GameLobby,
-        GameLobbyEvent
-    },
-    util::{
-        WsSender,
-        WsReceiver
-    }
+    lobby::{GameLobby, GameLobbyEvent},
+    util::{generate_random_id, WsReceiver, WsSender},
 };
-use rand::Rng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use tokio::sync::mpsc;
@@ -82,7 +75,7 @@ impl LobbyManager {
                     None => {}
                 },
                 LobbyManagerEvent::CreateNewLobby { ws_read, ws_write } => {
-                    let new_id = self.generate_lobby_id();
+                    let new_id = generate_random_id(&self.lobby_channels);
                     let (mut lobby, lobby_sender) = GameLobby::new(new_id, sender.clone());
                     self.lobby_channels.insert(new_id, lobby_sender.clone());
                     tokio::spawn(async move {
@@ -95,15 +88,6 @@ impl LobbyManager {
                         error!("Error sending user to newly created game lobby: {:?}", e);
                     }
                 }
-            }
-        }
-    }
-
-    fn generate_lobby_id(&self) -> u64 {
-        loop {
-            let id: u64 = rand::thread_rng().gen();
-            if !self.lobby_channels.contains_key(&id) {
-                return id;
             }
         }
     }
