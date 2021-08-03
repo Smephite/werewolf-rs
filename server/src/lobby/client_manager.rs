@@ -101,7 +101,13 @@ impl ClientManager {
     /*
     Runs the player manager. This handles all incoming packets from the client, as well as events/requests sent to it over its channel
     */
-    pub async fn run(&mut self) {
+    pub async fn start(mut self) {
+        tokio::spawn(async move {
+            self.run().await;
+        });
+    }
+
+    async fn run(&mut self) {
         loop {
             select! {
                 //Receive an event (for example from the LobbyManager) and handle it

@@ -74,7 +74,9 @@ async fn run_server() -> Result<(), Error> {
                             Ok(())
                         }
                         Some(_) => {
-                            warn!("Received initial packet that is not a create/join lobby request");
+                            warn!(
+                                "Received initial packet that is not a create/join lobby request"
+                            );
                             Ok(())
                         }
                         None => Ok(()),

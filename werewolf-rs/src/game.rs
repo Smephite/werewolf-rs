@@ -16,6 +16,14 @@ impl Role {
     pub fn is_player(&self) -> bool {
         !matches!(self, Role::Spectator)
     }
+    /*
+    A list of roles that have to have finished their actions for this night, before this role's turn
+    */
+    pub fn dependencies_in_night(&self) -> Vec<Role> {
+        match self {
+            Self::Spectator => Vec::new()
+        }
+    }
 }
 
 impl RoleData {
