@@ -21,7 +21,7 @@ impl Role {
     */
     pub fn dependencies_in_night(&self) -> Vec<Role> {
         match self {
-            Self::Spectator => Vec::new()
+            Self::Spectator => Vec::new(),
         }
     }
 }

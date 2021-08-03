@@ -25,7 +25,7 @@ pub enum GameLobbyEvent {
         client_id: u64,
     },
     //Run an arbitrary (non-blocking) function on the game data
-    AccessGameData(Box<dyn FnOnce(&mut GameData) + Send + Sync>)
+    AccessGameData(Box<dyn FnOnce(&mut GameData) + Send + Sync>),
 }
 
 struct Client {
@@ -33,9 +33,7 @@ struct Client {
     is_lobby_host: bool,
 }
 
-pub struct GameData {
-
-}
+pub struct GameData {}
 
 pub struct GameLobby {
     id: u64,
@@ -66,7 +64,7 @@ impl GameLobby {
                 game_cancel: cancel_sender,
 
                 clients: HashMap::new(),
-                game_data: None
+                game_data: None,
             },
             sender,
         )
@@ -99,22 +97,21 @@ impl GameLobby {
                 GameLobbyEvent::StartGame { client_id } => {
                     let client = self.clients.get(&client_id).unwrap();
                     if client.is_lobby_host {
-                        let game_runner = GameRunner::new(self.sender.clone(), self.game_cancel.subscribe());
+                        let game_runner =
+                            GameRunner::new(self.sender.clone(), self.game_cancel.subscribe());
                         game_runner.start().await;
                     } else {
                         warn!("Received start game request by client without permission");
                     }
-                },
-                GameLobbyEvent::AccessGameData(f) => {
-                    match self.game_data.as_mut() {
-                        None => {
-                            error!("Tried to access non-existing game data");
-                        }
-                        Some(data) => {
-                            f(data);
-                        }
-                    }
                 }
+                GameLobbyEvent::AccessGameData(f) => match self.game_data.as_mut() {
+                    None => {
+                        error!("Tried to access non-existing game data");
+                    }
+                    Some(data) => {
+                        f(data);
+                    }
+                },
             }
         }
     }
@@ -123,16 +120,22 @@ impl GameLobby {
     Executes an arbitrary function on the game data and returns the result.
     The function should complete fast, as otherwise it will stall the whole lobby
     */
-    pub async fn access_game_data<F, R>(sender: mpsc::Sender<GameLobbyEvent>, f: F) -> Result<R, Error>
-        where F: FnOnce(&mut GameData) -> R + Send + Sync + 'static,
-        R: Send + 'static
+    pub async fn access_game_data<F, R>(
+        sender: mpsc::Sender<GameLobbyEvent>,
+        f: F,
+    ) -> Result<R, Error>
+    where
+        F: FnOnce(&mut GameData) -> R + Send + Sync + 'static,
+        R: Send + 'static,
     {
         let (callback_send, callback_rec) = oneshot::channel::<R>();
         let f_callback = move |game_data: &mut GameData| {
             let result = f(game_data);
             callback_send.send(result).ok();
         };
-        sender.send(GameLobbyEvent::AccessGameData(Box::new(f_callback))).await?;
+        sender
+            .send(GameLobbyEvent::AccessGameData(Box::new(f_callback)))
+            .await?;
         Ok(callback_rec.await?)
     }
 }

@@ -1,4 +1,3 @@
-
 use anyhow::Error;
 use tokio::sync::{broadcast, mpsc};
 
@@ -10,17 +9,20 @@ This does not contain the game state, as that is handled by the GameLobby
 */
 pub struct GameRunner {
     lobby_sender: mpsc::Sender<GameLobbyEvent>,
-    game_cancel: broadcast::Receiver<()>
+    game_cancel: broadcast::Receiver<()>,
 }
 
 impl GameRunner {
     /*
     Creates a new game runner and a broadcast sender that can be used to cancel the game (by stopping all created tasks at their next .await)
     */
-    pub fn new(lobby_sender: mpsc::Sender<GameLobbyEvent>, game_cancel: broadcast::Receiver<()>) -> Self {
-        GameRunner { 
+    pub fn new(
+        lobby_sender: mpsc::Sender<GameLobbyEvent>,
+        game_cancel: broadcast::Receiver<()>,
+    ) -> Self {
+        GameRunner {
             lobby_sender,
-            game_cancel
+            game_cancel,
         }
     }
 
