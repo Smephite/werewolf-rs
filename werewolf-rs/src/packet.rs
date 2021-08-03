@@ -15,13 +15,13 @@ pub fn deserialize_packet<'a, P: Deserialize<'a>>(raw: &'a str) -> Result<P> {
 pub enum PacketToServer {
     CreateNewLobby,
     JoinLobby(u64),
+    StartGame,
     //A response to an interaction that was created by the server. One interaction may be responded to several times, depending on its type
     InteractionResponse {
         interaction_id: u64,
         data: InteractionResponse,
     },
     CloseConnection,
-    ReceivedInvalidData,
     Unknown,
 }
 
@@ -47,7 +47,6 @@ pub enum PacketToClient {
     },
     Ping(String),
     CloseConnection,
-    ReceivedInvalidData,
     Unknown,
 }
 

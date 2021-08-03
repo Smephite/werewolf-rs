@@ -10,7 +10,6 @@ use futures::{SinkExt, StreamExt};
 use lobby_manager::LobbyManager;
 use std::env;
 use tokio::{net::TcpListener, runtime::Builder, sync::mpsc};
-use util::send_logging;
 use werewolf_rs::packet::{deserialize_packet, serialize_packet, PacketToClient, PacketToServer};
 
 fn main() {
@@ -51,7 +50,7 @@ async fn run_server() -> Result<(), Error> {
                         Ok(Message::Close(_)) => PacketToServer::CloseConnection,
                         _ => PacketToServer::Unknown,
                     });
-                    let mut ws_write: util::WsSender = Box::pin(ws_write);
+                    let ws_write: util::WsSender = Box::pin(ws_write);
                     let mut ws_read: util::WsReceiver = Box::pin(ws_read);
                     //Decide what to do with the connection based on the first received message
                     match ws_read.next().await {
@@ -75,7 +74,7 @@ async fn run_server() -> Result<(), Error> {
                             Ok(())
                         }
                         Some(_) => {
-                            send_logging(&mut ws_write, PacketToClient::ReceivedInvalidData).await;
+                            warn!("Received initial packet that is not a create/join lobby request");
                             Ok(())
                         }
                         None => Ok(()),

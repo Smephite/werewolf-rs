@@ -103,8 +103,8 @@ impl ClientManager {
     */
     pub async fn run(&mut self) {
         loop {
-            //Wait for packets from the client or events
             select! {
+                //Receive an event (for example from the LobbyManager) and handle it
                 event = self.event_receive.recv() => {
                     match event {
                         None => {
@@ -134,6 +134,7 @@ impl ClientManager {
                         }
                     }
                 }
+                //Receive a packet from the client and handle it
                 packet = self.packet_receive.recv() => {
                     match packet {
                         None => {
@@ -145,11 +146,12 @@ impl ClientManager {
                             match packet {
                                 PacketToServer::CloseConnection => {
                                     self.game_lobby_send.send(GameLobbyEvent::ConnectionLost { client_id: self.client_id }).await.unwrap();
+                                    return;
                                 }
                                 PacketToServer::InteractionResponse { interaction_id, data } => {
                                     match self.interactions.get(&interaction_id) {
                                         None => {
-                                            self.packet_send.send(PacketToClient::ReceivedInvalidData).await.unwrap();
+                                            warn!("Received interaction response with unknown id: {}", interaction_id);
                                         }
                                         Some(channel) => {
                                             if let Err(e) = channel.send(data).await {
@@ -158,8 +160,11 @@ impl ClientManager {
                                         }
                                     }
                                 }
-                                _ => {
-                                    self.packet_send.send(PacketToClient::ReceivedInvalidData).await.unwrap();
+                                PacketToServer::StartGame => {
+                                    self.game_lobby_send.send(GameLobbyEvent::StartGame { client_id: self.client_id} ).await.unwrap();
+                                }
+                                PacketToServer::Unknown | PacketToServer::JoinLobby(_) | PacketToServer::CreateNewLobby => {
+                                    warn!("Received unknown/invalid packet from client in game lobby");
                                 }
                             }
                         }

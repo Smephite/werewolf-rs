@@ -18,10 +18,14 @@ pub enum GameLobbyEvent {
     ConnectionLost {
         client_id: u64,
     },
+    StartGame {
+        client_id: u64
+    }
 }
 
 struct Client {
     sender: mpsc::Sender<ClientEvent>,
+    is_lobby_host: bool
 }
 
 pub struct GameLobby {
@@ -69,12 +73,21 @@ impl GameLobby {
                     });
                     let client = Client {
                         sender: client_sender,
+                        is_lobby_host: self.clients.values().all(|c| !c.is_lobby_host)
                     };
                     self.clients.insert(client_id, client);
                 }
                 GameLobbyEvent::ConnectionLost { client_id } => {
                     //TODO Consider adding a "reconnect" feature if connection loss becomes a problem
                     self.clients.remove(&client_id);
+                }
+                GameLobbyEvent::StartGame { client_id } => {
+                    let client = self.clients.get(&client_id).unwrap();
+                    if client.is_lobby_host {
+                        todo!();
+                    } else {
+                        warn!("Received start game request by client without permission");
+                    }
                 }
             }
         }
