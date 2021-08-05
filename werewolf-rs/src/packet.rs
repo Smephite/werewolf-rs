@@ -1,6 +1,8 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+use crate::game::GameInfo;
+
 pub fn serialize_packet<P: Serialize>(packet: &P) -> Result<String> {
     let raw: String = serde_json::ser::to_string(packet)?;
     Ok(raw)
@@ -32,6 +34,7 @@ pub enum PacketToClient {
         lobby_id: u64,
         client_id: u64,
     },
+    GameUpdate(GameInfo),
     //The begin of an interaction (a series of packets that are linked by an ID)
     InteractionRequest {
         interaction_id: u64,

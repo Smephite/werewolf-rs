@@ -12,6 +12,7 @@ use anyhow::Error;
 use client_manager::{ClientEvent, ClientManager};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::{broadcast, mpsc, oneshot};
+use werewolf_rs::game::{Role, RoleData};
 
 pub enum GameLobbyEvent {
     NewConnection {
@@ -24,16 +25,28 @@ pub enum GameLobbyEvent {
     StartGame {
         client_id: u64,
     },
+    //Send an update to all connected clients with the updated game data
+    SendUpdate,
     //Run an arbitrary (non-blocking) function on the game data
     AccessGameData(Box<dyn FnOnce(&mut GameData) + Send + Sync>),
 }
 
-struct Client {
-    sender: mpsc::Sender<ClientEvent>,
+#[derive(Clone)]
+pub struct Player {
+    role_data: RoleData,
     is_lobby_host: bool,
+    is_alive: bool,
 }
 
-pub struct GameData {}
+#[derive(Clone)]
+pub struct GameData {
+    players: HashMap<u64, Player>,
+}
+
+#[derive(Clone)]
+pub struct GameConfig {
+    roles: Vec<Role>,
+}
 
 pub struct GameLobby {
     id: u64,
@@ -42,8 +55,23 @@ pub struct GameLobby {
     sender: mpsc::Sender<GameLobbyEvent>,
     game_cancel: broadcast::Sender<()>,
 
-    clients: HashMap<u64, Client>,
-    game_data: Option<GameData>,
+    clients: HashMap<u64, mpsc::Sender<ClientEvent>>,
+    game_data: GameData,
+    game_config: GameConfig,
+}
+
+impl Default for GameConfig {
+    fn default() -> Self {
+        GameConfig { roles: Vec::new() }
+    }
+}
+
+impl Default for GameData {
+    fn default() -> Self {
+        GameData {
+            players: HashMap::new(),
+        }
+    }
 }
 
 impl GameLobby {
@@ -54,7 +82,7 @@ impl GameLobby {
         //The channel to send events to this lobby
         let (sender, receiver) = mpsc::channel(8);
         //The channel to cancel a running game
-        let (cancel_sender, cancel_receiver) = broadcast::channel(1);
+        let (cancel_sender, _) = broadcast::channel(1);
         (
             GameLobby {
                 id,
@@ -64,7 +92,8 @@ impl GameLobby {
                 game_cancel: cancel_sender,
 
                 clients: HashMap::new(),
-                game_data: None,
+                game_data: GameData::default(),
+                game_config: GameConfig::default(),
             },
             sender,
         )
@@ -84,34 +113,39 @@ impl GameLobby {
                     )
                     .await;
                     client_manager.start().await;
-                    let client = Client {
-                        sender: client_sender,
-                        is_lobby_host: self.clients.values().all(|c| !c.is_lobby_host),
+                    let player = Player {
+                        role_data: RoleData::Spectator,
+                        is_lobby_host: self.game_data.players.values().all(|c| !c.is_lobby_host),
+                        is_alive: false,
                     };
-                    self.clients.insert(client_id, client);
+                    self.game_data.players.insert(client_id, player);
+                    self.clients.insert(client_id, client_sender);
                 }
                 GameLobbyEvent::ConnectionLost { client_id } => {
                     //TODO Consider adding a "reconnect" feature if connection loss becomes a problem
                     self.clients.remove(&client_id);
                 }
                 GameLobbyEvent::StartGame { client_id } => {
-                    let client = self.clients.get(&client_id).unwrap();
-                    if client.is_lobby_host {
-                        let game_runner =
-                            GameRunner::new(self.sender.clone(), self.game_cancel.subscribe());
+                    let player = self.game_data.players.get(&client_id).unwrap();
+                    if player.is_lobby_host {
+                        let game_runner = GameRunner::new(
+                            self.game_config.clone(),
+                            self.sender.clone(),
+                            self.game_cancel.clone(),
+                        );
                         game_runner.start().await;
                     } else {
                         warn!("Received start game request by client without permission");
                     }
                 }
-                GameLobbyEvent::AccessGameData(f) => match self.game_data.as_mut() {
-                    None => {
-                        error!("Tried to access non-existing game data");
+                GameLobbyEvent::SendUpdate => {
+                    for sender in self.clients.values() {
+                        sender.send(ClientEvent::SendUpdate(self.game_data.clone()));
                     }
-                    Some(data) => {
-                        f(data);
-                    }
-                },
+                }
+                GameLobbyEvent::AccessGameData(f) => {
+                    f(&mut self.game_data);
+                }
             }
         }
     }
@@ -121,7 +155,7 @@ impl GameLobby {
     The function should complete fast, as otherwise it will stall the whole lobby
     */
     pub async fn access_game_data<F, R>(
-        sender: mpsc::Sender<GameLobbyEvent>,
+        sender: &mpsc::Sender<GameLobbyEvent>,
         f: F,
     ) -> Result<R, Error>
     where

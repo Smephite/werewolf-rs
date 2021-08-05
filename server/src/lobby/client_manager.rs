@@ -1,17 +1,22 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
-use super::GameLobbyEvent;
+use super::{GameData, GameLobbyEvent};
 use crate::util::{generate_random_id, send_logging, WsReceiver, WsSender};
 use futures::{SinkExt, StreamExt};
 use tokio::{
     select,
     sync::{mpsc, oneshot},
 };
-use werewolf_rs::packet::{
-    InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient, PacketToServer,
+use werewolf_rs::{
+    game::{GameInfo, PlayerInfo, RoleData, RoleInfo},
+    packet::{
+        InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient,
+        PacketToServer,
+    },
 };
 
 pub enum ClientEvent {
+    SendUpdate(GameData),
     /*Create an interaction and send the packet to the client.
     The interaction ID is sent back over the provided oneshot channel*/
     CreateInteraction(
@@ -118,6 +123,32 @@ impl ClientManager {
                         }
                         Some(event) => {
                             match event {
+                                ClientEvent::SendUpdate(game_data) => {
+                                    let player_infos: HashMap<u64, PlayerInfo> = game_data.players
+                                    .into_iter()
+                                    .map(|(id, player)| {
+                                        if id==self.client_id {
+                                            (id, PlayerInfo {
+                                                role_info: RoleInfo::KnownData(player.role_data),
+                                                is_alive: player.is_alive,
+                                                is_lobby_host: player.is_lobby_host
+                                            })
+                                        } else {
+                                            (id, PlayerInfo {
+                                                role_info: match player.role_data {
+                                                    RoleData::Spectator => RoleInfo::KnownData(player.role_data),
+                                                    _ => RoleInfo::Unknown
+                                                },
+                                                is_alive: player.is_alive,
+                                                is_lobby_host: player.is_lobby_host,
+                                            })
+                                        }
+                                    }).collect();
+                                    let game_info = GameInfo {
+                                        players: player_infos
+                                    };
+                                    self.packet_send.send(PacketToClient::GameUpdate(game_info)).await.unwrap();
+                                },
                                 ClientEvent::CreateInteraction(data, response_channel, id_oneshot) => {
                                     let interaction_id = generate_random_id(&self.interactions);
                                     self.interactions.insert(interaction_id, response_channel);

@@ -1,15 +1,46 @@
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
 /*
 The roles that a client in werewolf may have
 */
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Role {
     Spectator,
+    Villager,
 }
 
 /*
 The data that is associated to the role of a player. Note that this is usually not visible to everyone
 */
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RoleData {
     Spectator,
+    Villager,
+}
+
+/*
+The information on a game that is visible to a specific player
+*/
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GameInfo {
+    pub players: HashMap<u64, PlayerInfo>,
+}
+
+/*
+The information on a player that is visible to the same or a different player
+*/
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlayerInfo {
+    pub role_info: RoleInfo,
+    pub is_alive: bool,
+    pub is_lobby_host: bool,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum RoleInfo {
+    Unknown,
+    Known(Role),
+    KnownData(RoleData),
 }
 
 impl Role {
@@ -22,14 +53,23 @@ impl Role {
     pub fn dependencies_in_night(&self) -> Vec<Role> {
         match self {
             Self::Spectator => Vec::new(),
+            Self::Villager => Vec::new(),
         }
     }
 }
 
 impl RoleData {
+    pub fn new(role: &Role) -> Self {
+        match role {
+            Role::Spectator => Self::Spectator,
+            Role::Villager => Self::Villager,
+        }
+    }
+
     pub fn get_role(&self) -> Role {
         match self {
             Self::Spectator => Role::Spectator,
+            Self::Villager => Role::Villager,
         }
     }
 }
