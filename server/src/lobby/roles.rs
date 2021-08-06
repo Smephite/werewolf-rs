@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use tokio::sync::mpsc;
 
 use anyhow::Error;
 use async_trait::async_trait;

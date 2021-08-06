@@ -140,7 +140,12 @@ impl GameLobby {
                 }
                 GameLobbyEvent::SendUpdate => {
                     for sender in self.clients.values() {
-                        sender.send(ClientEvent::SendUpdate(self.game_data.clone()));
+                        if let Err(_) = sender
+                            .send(ClientEvent::SendUpdate(self.game_data.clone()))
+                            .await
+                        {
+                            error!("Error sending update to client manager");
+                        }
                     }
                 }
                 GameLobbyEvent::AccessGameData(f) => {

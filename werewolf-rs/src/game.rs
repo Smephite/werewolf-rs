@@ -4,7 +4,7 @@ use std::collections::HashMap;
 /*
 The roles that a client in werewolf may have
 */
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone, Serialize, Deserialize)]
 pub enum Role {
     Spectator,
     Villager,
