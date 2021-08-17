@@ -10,10 +10,11 @@ use super::{
 };
 use anyhow::Error;
 use client_manager::{ClientEvent, ClientManager};
-use std::{collections::HashMap, fmt::Debug};
+use std::{collections::HashMap, fmt::Debug, mem};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use werewolf_rs::{
     game::{CauseOfDeath, Role, RoleData},
+    packet::PacketToClient,
     util::{Id, LobbyId, PlayerId},
 };
 
@@ -31,6 +32,9 @@ pub enum GameLobbyEvent {
     StartGame {
         client_id: PlayerId,
     },
+    PlayerDied(PlayerId, CauseOfDeath),
+    //Kill all dying players. This happens at the end of each night
+    ApplyDeaths,
     //Send an update to all connected clients with the updated game data
     SendUpdate,
     //Run an arbitrary (non-blocking) function on the game data
@@ -128,10 +132,12 @@ impl GameLobby {
                     };
                     self.game_data.players.insert(client_id, player);
                     self.clients.insert(client_id, client_sender);
+                    self.send_update().await;
                 }
                 GameLobbyEvent::ConnectionLost { client_id } => {
                     //TODO Consider adding a "reconnect" feature if connection loss becomes a problem
                     self.clients.remove(&client_id);
+                    self.send_update().await;
                 }
                 GameLobbyEvent::StartGame { client_id } => {
                     let player = self.game_data.players.get(&client_id).unwrap();
@@ -146,16 +152,16 @@ impl GameLobby {
                         warn!("Received start game request by client without permission");
                     }
                 }
-                GameLobbyEvent::SendUpdate => {
-                    for sender in self.clients.values() {
-                        if sender
-                            .send(ClientEvent::SendUpdate(self.game_data.clone()))
-                            .await
-                            .is_err()
-                        {
-                            error!("Error sending update to client manager");
-                        }
+                GameLobbyEvent::ApplyDeaths => {
+                    for (player, cause) in mem::take(&mut self.game_data.dying_players) {
+                        self.player_died(player, cause).await;
                     }
+                }
+                GameLobbyEvent::PlayerDied(id, cause) => {
+                    self.player_died(id, cause).await;
+                }
+                GameLobbyEvent::SendUpdate => {
+                    self.send_update().await;
                 }
                 GameLobbyEvent::AccessGameData(f) => {
                     f(&mut self.game_data, &self.clients);
@@ -190,6 +196,33 @@ impl GameLobby {
             .send(GameLobbyEvent::AccessGameData(Box::new(f_callback)))
             .await?;
         Ok(callback_rec.await?)
+    }
+
+    /*
+    Sends the relevant game data to all connected clients
+    */
+    async fn send_update(&mut self) {
+        for sender in self.clients.values() {
+            if sender
+                .send(ClientEvent::SendUpdate(self.game_data.clone()))
+                .await
+                .is_err()
+            {
+                error!("Error sending update to client manager");
+            }
+        }
+    }
+
+    async fn player_died(&mut self, id: PlayerId, cause: CauseOfDeath) {
+        if let Some(player) = self.game_data.players.get(&id) {
+            for sender in self.clients.values() {
+                let packet =
+                    PacketToClient::PlayerDied(id, cause.clone(), player.role_data.get_role());
+                if sender.send(ClientEvent::SendPacket(packet)).await.is_err() {
+                    error!("Error sending PlayerDied packet to client manager");
+                }
+            }
+        }
     }
 }
 

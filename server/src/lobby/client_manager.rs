@@ -27,6 +27,7 @@ pub enum ClientEvent {
     //Send an interaction followup for the interaction with the given id
     FollowupInteraction(InteractionId, InteractionFollowup),
     CloseInteraction(InteractionId),
+    SendPacket(PacketToClient),
 }
 
 /*
@@ -167,6 +168,9 @@ impl ClientManager {
                                 ClientEvent::CloseInteraction(interaction_id) => {
                                     self.packet_send.send(PacketToClient::InteractionClose { interaction_id }).await.unwrap();
                                 }
+                                ClientEvent::SendPacket(packet) => {
+                                    self.packet_send.send(packet).await.unwrap();
+                                }
                             }
                         }
                     }
@@ -219,6 +223,7 @@ impl Debug for ClientEvent {
             Self::CreateInteraction(_, _, _) => write!(f, "CreateInteraction"),
             Self::FollowupInteraction(_, _) => write!(f, "FollowupInteraction"),
             Self::CloseInteraction(_) => write!(f, "CloseInteraction"),
+            Self::SendPacket(packet) => write!(f, "SendPacket({:?}", packet),
         }
     }
 }

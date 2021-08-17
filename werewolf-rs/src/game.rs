@@ -48,6 +48,7 @@ pub enum RoleInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CauseOfDeath {
     Unknown,
+    VillageVote,
 }
 
 impl Role {

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap, mem};
 
 use anyhow::Error;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
@@ -8,7 +8,7 @@ use tokio::{
     sync::{broadcast, mpsc, oneshot},
 };
 use werewolf_rs::{
-    game::{Role, RoleData},
+    game::{CauseOfDeath, Role, RoleData},
     packet::{InteractionFollowup, InteractionRequest, InteractionResponse},
     util::{InteractionId, PlayerId},
 };
@@ -156,12 +156,54 @@ impl GameRunner {
                 break;
             }
         }
-        todo!("End the night, applying all the changes");
+
+        //Apply the changes that happened during the night (but only take effect now)
+        self.lobby_sender.send(GameLobbyEvent::ApplyDeaths).await?;
+        Ok(())
     }
 
     async fn run_day(&mut self) -> Result<(), Error> {
-        //TODO Add some more information to the nomination_vote function
+        //TODO Add some more information to the nomination_vote function to indicate what is being voted on
         let village_vote = Self::nomination_vote(&self.lobby_sender).await?;
+        let mut voted_for: HashMap<PlayerId, u32> = HashMap::new();
+        for (_, vote) in village_vote {
+            voted_for
+                .entry(vote)
+                .and_modify(|count| *count += 1)
+                .or_insert(1);
+        }
+        /*
+        TODO Add different options for how to handle ambiguous voting results, such as:
+        * Rerun the vote with only the most voted for players as an option
+        * Kill no one this round
+        * Kill all players that have been selected
+        */
+        let mut max_found_votes = 0;
+        let mut vote_unambiguous = true;
+        let mut voted_player = None;
+        for (player, &count) in voted_for.iter() {
+            match count.cmp(&max_found_votes) {
+                Ordering::Greater => {
+                    max_found_votes = count;
+                    vote_unambiguous = true;
+                    voted_player = Some(player);
+                }
+                Ordering::Equal => {
+                    vote_unambiguous = false;
+                }
+                Ordering::Less => {}
+            }
+        }
+        if let Some(voted_player) = voted_player {
+            if vote_unambiguous {
+                self.lobby_sender
+                    .send(GameLobbyEvent::PlayerDied(
+                        *voted_player,
+                        CauseOfDeath::VillageVote,
+                    ))
+                    .await?;
+            }
+        }
         todo!();
     }
 
@@ -201,7 +243,7 @@ impl GameRunner {
 
         //Mapping from client id to (client_sender, voting_status)
         let mut clients: HashMap<PlayerId, (mpsc::Sender<ClientEvent>, VotingStatus)> =
-            GameLobby::access_game_data(&lobby_sender, |game_data, clients| {
+            GameLobby::access_game_data(lobby_sender, |game_data, clients| {
                 let mut ret_clients = HashMap::new();
                 for (player_id, player) in game_data.players.iter() {
                     ret_clients.insert(

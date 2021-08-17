@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    game::{CauseOfDeath, GameInfo},
+    game::{CauseOfDeath, GameInfo, Role},
     util::{InteractionId, LobbyId, PlayerId},
 };
 
@@ -38,7 +38,7 @@ pub enum PacketToClient {
         client_id: PlayerId,
     },
     GameUpdate(GameInfo),
-    PlayersDied(Vec<(PlayerId, CauseOfDeath)>),
+    PlayerDied(PlayerId, CauseOfDeath, Role),
     //The begin of an interaction (a series of packets that are linked by an ID)
     InteractionRequest {
         interaction_id: InteractionId,

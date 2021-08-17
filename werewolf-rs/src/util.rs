@@ -64,7 +64,7 @@ impl<T> Debug for Id<T> {
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
         Self {
-            value: self.value.clone(),
+            value: self.value,
             id_type: PhantomData,
         }
     }
