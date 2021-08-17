@@ -9,7 +9,6 @@ mod id_type {
     pub struct Lobby;
 }
 
-
 pub type PlayerId = Id<id_type::Player>;
 pub type InteractionId = Id<id_type::Interaction>;
 pub type LobbyId = Id<id_type::Lobby>;
@@ -20,7 +19,7 @@ The generic parameter T does nothing and is just used to enforce type checking w
 */
 pub struct Id<T> {
     value: u64,
-    id_type: PhantomData<T>
+    id_type: PhantomData<T>,
 }
 
 impl<T> Id<T> {
@@ -28,7 +27,7 @@ impl<T> Id<T> {
         loop {
             let id = Id {
                 value: rand::thread_rng().gen(),
-                id_type: PhantomData
+                id_type: PhantomData,
             };
             if !used_ids.contains_key(&id) {
                 return id;
@@ -41,17 +40,19 @@ impl<T> Id<T> {
 impl<T> Serialize for Id<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: serde::Serializer {
+        S: serde::Serializer,
+    {
         self.value.serialize(serializer)
     }
 }
 impl<'de, T> Deserialize<'de> for Id<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de> {
+        D: serde::Deserializer<'de>,
+    {
         Ok(Id {
             value: u64::deserialize(deserializer)?,
-            id_type: PhantomData
+            id_type: PhantomData,
         })
     }
 }
@@ -62,7 +63,10 @@ impl<T> Debug for Id<T> {
 }
 impl<T> Clone for Id<T> {
     fn clone(&self) -> Self {
-        Self { value: self.value.clone(), id_type: PhantomData }
+        Self {
+            value: self.value.clone(),
+            id_type: PhantomData,
+        }
     }
 }
 impl<T> Copy for Id<T> {}

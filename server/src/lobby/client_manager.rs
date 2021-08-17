@@ -6,10 +6,14 @@ use tokio::{
     select,
     sync::{mpsc, oneshot},
 };
-use werewolf_rs::{game::{GameInfo, PlayerInfo, RoleData, RoleInfo}, packet::{
+use werewolf_rs::{
+    game::{GameInfo, PlayerInfo, RoleData, RoleInfo},
+    packet::{
         InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient,
         PacketToServer,
-    }, util::{Id, InteractionId, LobbyId, PlayerId}};
+    },
+    util::{Id, InteractionId, LobbyId, PlayerId},
+};
 
 pub enum ClientEvent {
     SendUpdate(GameData),

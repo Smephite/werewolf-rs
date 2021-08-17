@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     game::{CauseOfDeath, GameInfo},
-    util::{LobbyId, PlayerId, InteractionId},
+    util::{InteractionId, LobbyId, PlayerId},
 };
 
 pub fn serialize_packet<P: Serialize>(packet: &P) -> Result<String> {

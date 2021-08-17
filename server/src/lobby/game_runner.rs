@@ -7,7 +7,11 @@ use tokio::{
     select,
     sync::{broadcast, mpsc, oneshot},
 };
-use werewolf_rs::{game::{Role, RoleData}, packet::{InteractionFollowup, InteractionRequest, InteractionResponse}, util::{InteractionId, PlayerId}};
+use werewolf_rs::{
+    game::{Role, RoleData},
+    packet::{InteractionFollowup, InteractionRequest, InteractionResponse},
+    util::{InteractionId, PlayerId},
+};
 
 use super::{
     client_manager::ClientEvent, roles::ServerRole, GameConfig, GameLobby, GameLobbyEvent,
@@ -156,6 +160,8 @@ impl GameRunner {
     }
 
     async fn run_day(&mut self) -> Result<(), Error> {
+        //TODO Add some more information to the nomination_vote function
+        let village_vote = Self::nomination_vote(&self.lobby_sender).await?;
         todo!();
     }
 
@@ -184,7 +190,7 @@ impl GameRunner {
     Returns the result as a vector of (player, vote) tuples
     */
     async fn nomination_vote(
-        lobby_sender: mpsc::Sender<GameLobbyEvent>,
+        lobby_sender: &mpsc::Sender<GameLobbyEvent>,
     ) -> Result<Vec<(PlayerId, PlayerId)>, Error> {
         enum VotingStatus {
             NotVoting,
@@ -338,7 +344,6 @@ impl GameRunner {
                 ))
                 .await?;
         }
-
         Ok(vote_result)
     }
 }

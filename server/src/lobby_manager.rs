@@ -33,7 +33,11 @@ impl Debug for LobbyManagerEvent {
                 ws_write: _,
                 lobby_id,
             } => {
-                write!(f, "LobbyEvent::CreateNewLobby{{ lobby_id: {:?} }}", lobby_id)
+                write!(
+                    f,
+                    "LobbyEvent::CreateNewLobby{{ lobby_id: {:?} }}",
+                    lobby_id
+                )
             }
         }
     }

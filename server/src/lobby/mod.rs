@@ -2,7 +2,7 @@ mod client_manager;
 mod game_runner;
 mod roles;
 
-use crate::{lobby::game_runner::GameRunner};
+use crate::lobby::game_runner::GameRunner;
 
 use super::{
     lobby_manager::LobbyManagerEvent,
@@ -12,7 +12,10 @@ use anyhow::Error;
 use client_manager::{ClientEvent, ClientManager};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use werewolf_rs::{game::{CauseOfDeath, Role, RoleData}, util::{Id, LobbyId, PlayerId}};
+use werewolf_rs::{
+    game::{CauseOfDeath, Role, RoleData},
+    util::{Id, LobbyId, PlayerId},
+};
 
 type GameDataFunction =
     Box<dyn FnOnce(&mut GameData, &HashMap<PlayerId, mpsc::Sender<ClientEvent>>) + Send + Sync>;
@@ -178,7 +181,8 @@ impl GameLobby {
     {
         let (callback_send, callback_rec) = oneshot::channel::<R>();
         let f_callback =
-            move |game_data: &mut GameData, clients: &HashMap<PlayerId, mpsc::Sender<ClientEvent>>| {
+            move |game_data: &mut GameData,
+                  clients: &HashMap<PlayerId, mpsc::Sender<ClientEvent>>| {
                 let result = f(game_data, clients);
                 callback_send.send(result).ok();
             };
