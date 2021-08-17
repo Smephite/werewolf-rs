@@ -63,8 +63,8 @@ impl LobbyManager {
                     ws_read,
                     ws_write,
                     lobby_id,
-                } => match self.lobby_channels.get(&lobby_id) {
-                    Some(lobby_sender) => {
+                } => {
+                    if let Some(lobby_sender) = self.lobby_channels.get(&lobby_id) {
                         if let Err(e) = lobby_sender
                             .send(GameLobbyEvent::NewConnection { ws_read, ws_write })
                             .await
@@ -72,8 +72,7 @@ impl LobbyManager {
                             error!("Error sending user to game lobby: {:?}", e);
                         }
                     }
-                    None => {}
-                },
+                }
                 LobbyManagerEvent::CreateNewLobby { ws_read, ws_write } => {
                     let new_id = generate_random_id(&self.lobby_channels);
                     let (mut lobby, lobby_sender) = GameLobby::new(new_id, sender.clone());

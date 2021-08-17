@@ -1,8 +1,7 @@
-use std::{collections::HashMap, hash::Hash};
-
 use super::{GameData, GameLobbyEvent};
 use crate::util::{generate_random_id, send_logging, WsReceiver, WsSender};
 use futures::{SinkExt, StreamExt};
+use std::{collections::HashMap, fmt::Debug};
 use tokio::{
     select,
     sync::{mpsc, oneshot},
@@ -21,7 +20,7 @@ pub enum ClientEvent {
     The interaction ID is sent back over the provided oneshot channel*/
     CreateInteraction(
         InteractionRequest,
-        mpsc::Sender<InteractionResponse>,
+        mpsc::Sender<(u64, InteractionResponse)>,
         oneshot::Sender<u64>,
     ),
     //Send an interaction followup for the interaction with the given id
@@ -40,7 +39,7 @@ pub struct ClientManager {
     game_lobby_send: mpsc::Sender<GameLobbyEvent>,
 
     client_id: u64,
-    interactions: HashMap<u64, mpsc::Sender<InteractionResponse>>,
+    interactions: HashMap<u64, mpsc::Sender<(u64, InteractionResponse)>>,
 }
 
 impl ClientManager {
@@ -60,7 +59,7 @@ impl ClientManager {
         //The websocket receiving daemon
         tokio::spawn(async move {
             while let Some(packet) = ws_rec.next().await {
-                if let Err(_) = packet_receive_writer.send(packet).await {
+                if packet_receive_writer.send(packet).await.is_err() {
                     //If the receiving half of the channel is closed, stop listening for packets
                     break;
                 }
@@ -191,7 +190,7 @@ impl ClientManager {
                                             warn!("Received interaction response with unknown id: {}", interaction_id);
                                         }
                                         Some(channel) => {
-                                            if let Err(e) = channel.send(data).await {
+                                            if let Err(e) = channel.send((self.client_id, data)).await {
                                                 error!("Unable to send back interaction response: {}", e);
                                             }
                                         }
@@ -208,6 +207,17 @@ impl ClientManager {
                     }
                 }
             }
+        }
+    }
+}
+
+impl Debug for ClientEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::SendUpdate(_) => write!(f, "SendUpdate"),
+            Self::CreateInteraction(_, _, _) => write!(f, "CreateInteraction"),
+            Self::FollowupInteraction(_, _) => write!(f, "FollowupInteraction"),
+            Self::CloseInteraction(_) => write!(f, "CloseInteraction"),
         }
     }
 }

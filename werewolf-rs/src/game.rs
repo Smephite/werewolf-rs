@@ -43,6 +43,11 @@ pub enum RoleInfo {
     KnownData(RoleData),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CauseOfDeath {
+    Unknown,
+}
+
 impl Role {
     pub fn is_player(&self) -> bool {
         !matches!(self, Role::Spectator)

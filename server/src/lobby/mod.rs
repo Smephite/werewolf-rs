@@ -12,7 +12,10 @@ use anyhow::Error;
 use client_manager::{ClientEvent, ClientManager};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use werewolf_rs::game::{Role, RoleData};
+use werewolf_rs::game::{CauseOfDeath, Role, RoleData};
+
+type GameDataFunction =
+    Box<dyn FnOnce(&mut GameData, &HashMap<u64, mpsc::Sender<ClientEvent>>) + Send + Sync>;
 
 pub enum GameLobbyEvent {
     NewConnection {
@@ -28,7 +31,7 @@ pub enum GameLobbyEvent {
     //Send an update to all connected clients with the updated game data
     SendUpdate,
     //Run an arbitrary (non-blocking) function on the game data
-    AccessGameData(Box<dyn FnOnce(&mut GameData) + Send + Sync>),
+    AccessGameData(GameDataFunction),
 }
 
 #[derive(Clone)]
@@ -41,6 +44,7 @@ pub struct Player {
 #[derive(Clone)]
 pub struct GameData {
     players: HashMap<u64, Player>,
+    dying_players: Vec<(u64, CauseOfDeath)>,
 }
 
 #[derive(Clone)]
@@ -70,6 +74,7 @@ impl Default for GameData {
     fn default() -> Self {
         GameData {
             players: HashMap::new(),
+            dying_players: Vec::new(),
         }
     }
 }
@@ -140,16 +145,17 @@ impl GameLobby {
                 }
                 GameLobbyEvent::SendUpdate => {
                     for sender in self.clients.values() {
-                        if let Err(_) = sender
+                        if sender
                             .send(ClientEvent::SendUpdate(self.game_data.clone()))
                             .await
+                            .is_err()
                         {
                             error!("Error sending update to client manager");
                         }
                     }
                 }
                 GameLobbyEvent::AccessGameData(f) => {
-                    f(&mut self.game_data);
+                    f(&mut self.game_data, &self.clients);
                 }
             }
         }
@@ -164,14 +170,18 @@ impl GameLobby {
         f: F,
     ) -> Result<R, Error>
     where
-        F: FnOnce(&mut GameData) -> R + Send + Sync + 'static,
+        F: FnOnce(&mut GameData, &HashMap<u64, mpsc::Sender<ClientEvent>>) -> R
+            + Send
+            + Sync
+            + 'static,
         R: Send + 'static,
     {
         let (callback_send, callback_rec) = oneshot::channel::<R>();
-        let f_callback = move |game_data: &mut GameData| {
-            let result = f(game_data);
-            callback_send.send(result).ok();
-        };
+        let f_callback =
+            move |game_data: &mut GameData, clients: &HashMap<u64, mpsc::Sender<ClientEvent>>| {
+                let result = f(game_data, clients);
+                callback_send.send(result).ok();
+            };
         sender
             .send(GameLobbyEvent::AccessGameData(Box::new(f_callback)))
             .await?;

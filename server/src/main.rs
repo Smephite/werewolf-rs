@@ -27,7 +27,8 @@ async fn run_server() -> Result<(), Error> {
         lobby_manager.run(lobby_rec, lobby_send_cloned).await;
     });
 
-    let address = env::var("WEREWOLF_WEBSOCKET_ADDRESS").unwrap_or("127.0.0.1:8080".to_string());
+    let address =
+        env::var("WEREWOLF_WEBSOCKET_ADDRESS").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
     let listener = TcpListener::bind(address).await?;
 
     while let Ok((stream, _)) = listener.accept().await {
@@ -68,7 +69,7 @@ async fn run_server() -> Result<(), Error> {
                                 .send(lobby_manager::LobbyManagerEvent::JoinLobby {
                                     ws_read,
                                     ws_write,
-                                    lobby_id: lobby_id,
+                                    lobby_id,
                                 })
                                 .await?;
                             Ok(())

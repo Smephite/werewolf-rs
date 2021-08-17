@@ -1,13 +1,20 @@
+use std::collections::HashMap;
+
 use anyhow::Error;
-use futures::Future;
+use futures::{stream::FuturesUnordered, Future, StreamExt};
 use rand::{prelude::SliceRandom, Rng};
 use tokio::{
     select,
-    sync::{broadcast, mpsc},
+    sync::{broadcast, mpsc, oneshot},
 };
-use werewolf_rs::game::{Role, RoleData};
+use werewolf_rs::{
+    game::{Role, RoleData},
+    packet::{InteractionFollowup, InteractionRequest, InteractionResponse},
+};
 
-use super::{roles::ServerRole, GameConfig, GameLobby, GameLobbyEvent};
+use super::{
+    client_manager::ClientEvent, roles::ServerRole, GameConfig, GameLobby, GameLobbyEvent,
+};
 
 /*
 A struct that handles the game logic.
@@ -40,9 +47,7 @@ impl GameRunner {
             let mut game_cancel = self.game_cancel.subscribe();
             select! {
                 biased;
-                _ = game_cancel.recv() => {
-                    return;
-                }
+                _ = game_cancel.recv() => {}
                 res = self.run() => {
                     if let Err(e) = res {
                         error!("Error running game: {:?}", e);
@@ -58,13 +63,14 @@ impl GameRunner {
         //The main game loop
         loop {
             self.run_night().await?;
+            self.run_day().await?;
         }
     }
 
     async fn assign_roles(&mut self) -> Result<(), Error> {
         let mut client_ids: Vec<u64> =
-            GameLobby::access_game_data(&self.lobby_sender, |game_data| {
-                game_data.players.keys().map(|&id| id).collect()
+            GameLobby::access_game_data(&self.lobby_sender, |game_data, _| {
+                game_data.players.keys().copied().collect()
             })
             .await?;
         client_ids.shuffle(&mut rand::thread_rng());
@@ -81,7 +87,7 @@ impl GameRunner {
                 remaining_roles.swap_remove(idx);
             }
         }
-        GameLobby::access_game_data(&self.lobby_sender, move |game_data| {
+        GameLobby::access_game_data(&self.lobby_sender, move |game_data, _| {
             for (client_id, assigned_role) in client_ids.iter().zip(client_roles) {
                 match game_data.players.get_mut(client_id) {
                     None => {
@@ -100,7 +106,7 @@ impl GameRunner {
 
     async fn run_night(&mut self) -> Result<(), Error> {
         //A list of all the involved roles and whether they have already been run in this night
-        let unique_roles = GameLobby::access_game_data(&self.lobby_sender, |game_data| {
+        let unique_roles = GameLobby::access_game_data(&self.lobby_sender, |game_data, _| {
             let mut unique_roles: Vec<(Role, bool)> = Vec::new();
             for player in game_data.players.values().filter(|p| p.is_alive) {
                 if !unique_roles.contains(&(player.role_data.get_role(), false)) {
@@ -152,6 +158,10 @@ impl GameRunner {
         todo!("End the night, applying all the changes");
     }
 
+    async fn run_day(&mut self) -> Result<(), Error> {
+        todo!();
+    }
+
     //Spawn a new task that stops when the game is cancelled
     async fn spawn_task<T>(&mut self, task: T)
     where
@@ -161,9 +171,7 @@ impl GameRunner {
         tokio::spawn(async move {
             select! {
                 biased;
-                _ = game_cancel.recv() => {
-                    return;
-                }
+                _ = game_cancel.recv() => {}
                 res = task => {
                     if let Err(e) = res {
                         error!("Error running game subtask: {:?}", e);
@@ -172,5 +180,168 @@ impl GameRunner {
 
             }
         });
+    }
+
+    /*
+    Runs a nomination vote where all alive players can vote and be nominated
+    Returns the result as a vector of (player, vote) tuples
+    */
+    async fn nomination_vote(
+        lobby_sender: mpsc::Sender<GameLobbyEvent>,
+    ) -> Result<Vec<(u64, u64)>, Error> {
+        enum VotingStatus {
+            NotVoting,
+            NominationPending,
+            NominationFinished(Option<u64>),
+            VoteFinished(u64),
+        }
+
+        //Mapping from client id to (client_sender, voting_status)
+        let mut clients: HashMap<u64, (mpsc::Sender<ClientEvent>, VotingStatus)> =
+            GameLobby::access_game_data(&lobby_sender, |game_data, clients| {
+                let mut ret_clients = HashMap::new();
+                for (player_id, player) in game_data.players.iter() {
+                    ret_clients.insert(
+                        *player_id,
+                        (
+                            clients.get(player_id).unwrap().clone(),
+                            if player.is_alive {
+                                VotingStatus::NominationPending
+                            } else {
+                                VotingStatus::NotVoting
+                            },
+                        ),
+                    );
+                }
+                ret_clients
+            })
+            .await?;
+
+        //Create the interactions and collect the interaction ID for each client in a hashmap
+        let mut id_futs = FuturesUnordered::new();
+        let (interaction_send, mut interaction_receive) = mpsc::channel(8);
+        for (&id, (sender, voting_status)) in clients.iter() {
+            let (id_send, id_receive) = oneshot::channel();
+            sender
+                .send(ClientEvent::CreateInteraction(
+                    InteractionRequest::NvBegin {
+                        nominatable_player_ids: clients
+                            .iter()
+                            .filter(|(_, (_, voting_status))| {
+                                !matches!(voting_status, VotingStatus::NotVoting)
+                            })
+                            .map(|(id, _)| *id)
+                            .collect(),
+                        can_vote: !matches!(voting_status, &VotingStatus::NotVoting),
+                    },
+                    interaction_send.clone(),
+                    id_send,
+                ))
+                .await?;
+            id_futs.push(async move { (id, id_receive.await) });
+        }
+        let mut interaction_ids: HashMap<u64, u64> = HashMap::new();
+        while let Some((user_id, interaction_id)) = id_futs.next().await {
+            let interaction_id = interaction_id?;
+            interaction_ids.insert(user_id, interaction_id);
+        }
+
+        //Accept all nominations
+        while let Some((client_id, response)) = interaction_receive.recv().await {
+            match response {
+                InteractionResponse::NvNominate { nominated_player } => {
+                    let (_, voting_status) = clients.get_mut(&client_id).unwrap();
+                    if let VotingStatus::NominationPending = voting_status {
+                        *voting_status = VotingStatus::NominationFinished(nominated_player);
+                        //Notify all other clients of the nomination
+                        for (other_client, (sender, _)) in clients.iter() {
+                            let interaction_id = interaction_ids[other_client];
+                            sender
+                                .send(ClientEvent::FollowupInteraction(
+                                    interaction_id,
+                                    InteractionFollowup::NvNewNomination {
+                                        nominated_player,
+                                        nominated_by: client_id,
+                                    },
+                                ))
+                                .await?;
+                        }
+
+                        //Break out of the loop once all pending nominations have been received
+                        if clients.values().all(|(_, voting_status)| {
+                            !matches!(voting_status, VotingStatus::NominationPending)
+                        }) {
+                            break;
+                        }
+                    } else {
+                        warn!("Received Nomination from client that is not currently allowed to nominate");
+                    }
+                }
+                r => {
+                    warn!(
+                        "Received invalid interaction response during nomination phase: {:?}",
+                        r
+                    );
+                }
+            }
+        }
+        for (client_id, (sender, _)) in clients.iter() {
+            let interaction_id = interaction_ids[client_id];
+            sender
+                .send(ClientEvent::FollowupInteraction(
+                    interaction_id,
+                    InteractionFollowup::NvNominationsFinished,
+                ))
+                .await?;
+        }
+
+        //Accept votes
+        while let Some((client_id, response)) = interaction_receive.recv().await {
+            match response {
+                InteractionResponse::NvVote { player_id } => {
+                    let (_, voting_status) = clients.get_mut(&client_id).unwrap();
+                    if let VotingStatus::NominationFinished(_) = voting_status {
+                        *voting_status = VotingStatus::VoteFinished(player_id);
+
+                        //Break out of the loop once all pending votes have been received
+                        if clients.values().all(|(_, voting_status)| {
+                            !matches!(voting_status, VotingStatus::NominationFinished(_))
+                        }) {
+                            break;
+                        }
+                    } else {
+                        warn!("Received vote from client that is not currently allowed to vote");
+                    }
+                }
+                r => {
+                    warn!(
+                        "Received invalid interaction response during voting phase: {:?}",
+                        r
+                    );
+                }
+            }
+        }
+
+        //Send the result to all clients and return it
+        let vote_result: Vec<(u64, u64)> = clients
+            .iter()
+            .filter_map(|(client_id, (_, voting_status))| match voting_status {
+                VotingStatus::VoteFinished(vote) => Some((*client_id, *vote)),
+                _ => None,
+            })
+            .collect();
+        for (client, (sender, _)) in clients.iter() {
+            let interaction_id = interaction_ids[client];
+            sender
+                .send(ClientEvent::FollowupInteraction(
+                    interaction_id,
+                    InteractionFollowup::NvVoteFinished {
+                        votes: vote_result.clone(),
+                    },
+                ))
+                .await?;
+        }
+
+        Ok(vote_result)
     }
 }
