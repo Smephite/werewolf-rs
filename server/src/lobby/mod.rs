@@ -2,7 +2,7 @@ mod client_manager;
 mod game_runner;
 mod roles;
 
-use crate::{lobby::game_runner::GameRunner, util::generate_random_id};
+use crate::{lobby::game_runner::GameRunner};
 
 use super::{
     lobby_manager::LobbyManagerEvent,
@@ -12,10 +12,10 @@ use anyhow::Error;
 use client_manager::{ClientEvent, ClientManager};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::{broadcast, mpsc, oneshot};
-use werewolf_rs::game::{CauseOfDeath, Role, RoleData};
+use werewolf_rs::{game::{CauseOfDeath, Role, RoleData}, util::{Id, LobbyId, PlayerId}};
 
 type GameDataFunction =
-    Box<dyn FnOnce(&mut GameData, &HashMap<u64, mpsc::Sender<ClientEvent>>) + Send + Sync>;
+    Box<dyn FnOnce(&mut GameData, &HashMap<PlayerId, mpsc::Sender<ClientEvent>>) + Send + Sync>;
 
 pub enum GameLobbyEvent {
     NewConnection {
@@ -23,10 +23,10 @@ pub enum GameLobbyEvent {
         ws_write: WsSender,
     },
     ConnectionLost {
-        client_id: u64,
+        client_id: PlayerId,
     },
     StartGame {
-        client_id: u64,
+        client_id: PlayerId,
     },
     //Send an update to all connected clients with the updated game data
     SendUpdate,
@@ -43,8 +43,8 @@ pub struct Player {
 
 #[derive(Clone)]
 pub struct GameData {
-    players: HashMap<u64, Player>,
-    dying_players: Vec<(u64, CauseOfDeath)>,
+    players: HashMap<PlayerId, Player>,
+    dying_players: Vec<(PlayerId, CauseOfDeath)>,
 }
 
 #[derive(Clone)]
@@ -53,13 +53,13 @@ pub struct GameConfig {
 }
 
 pub struct GameLobby {
-    id: u64,
+    id: LobbyId,
     lobby_manager_sender: mpsc::Sender<LobbyManagerEvent>,
     receiver: mpsc::Receiver<GameLobbyEvent>,
     sender: mpsc::Sender<GameLobbyEvent>,
     game_cancel: broadcast::Sender<()>,
 
-    clients: HashMap<u64, mpsc::Sender<ClientEvent>>,
+    clients: HashMap<PlayerId, mpsc::Sender<ClientEvent>>,
     game_data: GameData,
     game_config: GameConfig,
 }
@@ -81,7 +81,7 @@ impl Default for GameData {
 
 impl GameLobby {
     pub fn new(
-        id: u64,
+        id: LobbyId,
         lobby_manager_sender: mpsc::Sender<LobbyManagerEvent>,
     ) -> (Self, mpsc::Sender<GameLobbyEvent>) {
         //The channel to send events to this lobby
@@ -108,7 +108,7 @@ impl GameLobby {
         while let Some(event) = self.receiver.recv().await {
             match event {
                 GameLobbyEvent::NewConnection { ws_read, ws_write } => {
-                    let client_id = generate_random_id(&self.clients);
+                    let client_id = Id::new(&self.clients);
                     let (client_manager, client_sender) = ClientManager::new(
                         self.id,
                         client_id,
@@ -170,7 +170,7 @@ impl GameLobby {
         f: F,
     ) -> Result<R, Error>
     where
-        F: FnOnce(&mut GameData, &HashMap<u64, mpsc::Sender<ClientEvent>>) -> R
+        F: FnOnce(&mut GameData, &HashMap<PlayerId, mpsc::Sender<ClientEvent>>) -> R
             + Send
             + Sync
             + 'static,
@@ -178,7 +178,7 @@ impl GameLobby {
     {
         let (callback_send, callback_rec) = oneshot::channel::<R>();
         let f_callback =
-            move |game_data: &mut GameData, clients: &HashMap<u64, mpsc::Sender<ClientEvent>>| {
+            move |game_data: &mut GameData, clients: &HashMap<PlayerId, mpsc::Sender<ClientEvent>>| {
                 let result = f(game_data, clients);
                 callback_send.send(result).ok();
             };

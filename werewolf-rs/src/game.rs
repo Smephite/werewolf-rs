@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::util::PlayerId;
+
 /*
 The roles that a client in werewolf may have
 */
@@ -24,7 +26,7 @@ The information on a game that is visible to a specific player
 */
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameInfo {
-    pub players: HashMap<u64, PlayerInfo>,
+    pub players: HashMap<PlayerId, PlayerInfo>,
 }
 
 /*

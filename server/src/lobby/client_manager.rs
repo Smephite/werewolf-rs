@@ -1,18 +1,15 @@
 use super::{GameData, GameLobbyEvent};
-use crate::util::{generate_random_id, send_logging, WsReceiver, WsSender};
+use crate::util::{send_logging, WsReceiver, WsSender};
 use futures::{SinkExt, StreamExt};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::{
     select,
     sync::{mpsc, oneshot},
 };
-use werewolf_rs::{
-    game::{GameInfo, PlayerInfo, RoleData, RoleInfo},
-    packet::{
+use werewolf_rs::{game::{GameInfo, PlayerInfo, RoleData, RoleInfo}, packet::{
         InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient,
         PacketToServer,
-    },
-};
+    }, util::{Id, InteractionId, LobbyId, PlayerId}};
 
 pub enum ClientEvent {
     SendUpdate(GameData),
@@ -20,12 +17,12 @@ pub enum ClientEvent {
     The interaction ID is sent back over the provided oneshot channel*/
     CreateInteraction(
         InteractionRequest,
-        mpsc::Sender<(u64, InteractionResponse)>,
-        oneshot::Sender<u64>,
+        mpsc::Sender<(PlayerId, InteractionResponse)>,
+        oneshot::Sender<InteractionId>,
     ),
     //Send an interaction followup for the interaction with the given id
-    FollowupInteraction(u64, InteractionFollowup),
-    CloseInteraction(u64),
+    FollowupInteraction(InteractionId, InteractionFollowup),
+    CloseInteraction(InteractionId),
 }
 
 /*
@@ -38,8 +35,8 @@ pub struct ClientManager {
     event_receive: mpsc::Receiver<ClientEvent>,
     game_lobby_send: mpsc::Sender<GameLobbyEvent>,
 
-    client_id: u64,
-    interactions: HashMap<u64, mpsc::Sender<(u64, InteractionResponse)>>,
+    client_id: PlayerId,
+    interactions: HashMap<InteractionId, mpsc::Sender<(PlayerId, InteractionResponse)>>,
 }
 
 impl ClientManager {
@@ -47,8 +44,8 @@ impl ClientManager {
     Creates a new PlayerManager with a channel to send events to it
     */
     pub async fn new(
-        lobby_id: u64,
-        client_id: u64,
+        lobby_id: LobbyId,
+        client_id: PlayerId,
         mut ws_send: WsSender,
         mut ws_rec: WsReceiver,
         game_lobby_send: mpsc::Sender<GameLobbyEvent>,
@@ -123,7 +120,7 @@ impl ClientManager {
                         Some(event) => {
                             match event {
                                 ClientEvent::SendUpdate(game_data) => {
-                                    let player_infos: HashMap<u64, PlayerInfo> = game_data.players
+                                    let player_infos: HashMap<PlayerId, PlayerInfo> = game_data.players
                                     .into_iter()
                                     .map(|(id, player)| {
                                         if id==self.client_id {
@@ -149,7 +146,7 @@ impl ClientManager {
                                     self.packet_send.send(PacketToClient::GameUpdate(game_info)).await.unwrap();
                                 },
                                 ClientEvent::CreateInteraction(data, response_channel, id_oneshot) => {
-                                    let interaction_id = generate_random_id(&self.interactions);
+                                    let interaction_id = Id::new(&self.interactions);
                                     self.interactions.insert(interaction_id, response_channel);
                                     id_oneshot.send(interaction_id).ok();
                                     self.packet_send.send(PacketToClient::InteractionRequest {
@@ -187,11 +184,11 @@ impl ClientManager {
                                 PacketToServer::InteractionResponse { interaction_id, data } => {
                                     match self.interactions.get(&interaction_id) {
                                         None => {
-                                            warn!("Received interaction response with unknown id: {}", interaction_id);
+                                            warn!("Received interaction response with unknown id: {:?}", interaction_id);
                                         }
                                         Some(channel) => {
                                             if let Err(e) = channel.send((self.client_id, data)).await {
-                                                error!("Unable to send back interaction response: {}", e);
+                                                error!("Unable to send back interaction response: {:?}", e);
                                             }
                                         }
                                     }

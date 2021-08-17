@@ -1,10 +1,11 @@
 use crate::{
     lobby::{GameLobby, GameLobbyEvent},
-    util::{generate_random_id, WsReceiver, WsSender},
+    util::{WsReceiver, WsSender},
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
 use tokio::sync::mpsc;
+use werewolf_rs::util::{Id, LobbyId};
 
 pub enum LobbyManagerEvent {
     CreateNewLobby {
@@ -14,7 +15,7 @@ pub enum LobbyManagerEvent {
     JoinLobby {
         ws_read: WsReceiver,
         ws_write: WsSender,
-        lobby_id: u64,
+        lobby_id: LobbyId,
     },
 }
 
@@ -32,14 +33,14 @@ impl Debug for LobbyManagerEvent {
                 ws_write: _,
                 lobby_id,
             } => {
-                write!(f, "LobbyEvent::CreateNewLobby{{ lobby_id: {} }}", lobby_id)
+                write!(f, "LobbyEvent::CreateNewLobby{{ lobby_id: {:?} }}", lobby_id)
             }
         }
     }
 }
 
 pub struct LobbyManager {
-    lobby_channels: HashMap<u64, mpsc::Sender<GameLobbyEvent>>,
+    lobby_channels: HashMap<LobbyId, mpsc::Sender<GameLobbyEvent>>,
 }
 
 impl LobbyManager {
@@ -74,7 +75,7 @@ impl LobbyManager {
                     }
                 }
                 LobbyManagerEvent::CreateNewLobby { ws_read, ws_write } => {
-                    let new_id = generate_random_id(&self.lobby_channels);
+                    let new_id = Id::new(&self.lobby_channels);
                     let (mut lobby, lobby_sender) = GameLobby::new(new_id, sender.clone());
                     self.lobby_channels.insert(new_id, lobby_sender.clone());
                     tokio::spawn(async move {

@@ -7,10 +7,7 @@ use tokio::{
     select,
     sync::{broadcast, mpsc, oneshot},
 };
-use werewolf_rs::{
-    game::{Role, RoleData},
-    packet::{InteractionFollowup, InteractionRequest, InteractionResponse},
-};
+use werewolf_rs::{game::{Role, RoleData}, packet::{InteractionFollowup, InteractionRequest, InteractionResponse}, util::{InteractionId, PlayerId}};
 
 use super::{
     client_manager::ClientEvent, roles::ServerRole, GameConfig, GameLobby, GameLobbyEvent,
@@ -68,7 +65,7 @@ impl GameRunner {
     }
 
     async fn assign_roles(&mut self) -> Result<(), Error> {
-        let mut client_ids: Vec<u64> =
+        let mut client_ids: Vec<PlayerId> =
             GameLobby::access_game_data(&self.lobby_sender, |game_data, _| {
                 game_data.players.keys().copied().collect()
             })
@@ -188,16 +185,16 @@ impl GameRunner {
     */
     async fn nomination_vote(
         lobby_sender: mpsc::Sender<GameLobbyEvent>,
-    ) -> Result<Vec<(u64, u64)>, Error> {
+    ) -> Result<Vec<(PlayerId, PlayerId)>, Error> {
         enum VotingStatus {
             NotVoting,
             NominationPending,
-            NominationFinished(Option<u64>),
-            VoteFinished(u64),
+            NominationFinished(Option<PlayerId>),
+            VoteFinished(PlayerId),
         }
 
         //Mapping from client id to (client_sender, voting_status)
-        let mut clients: HashMap<u64, (mpsc::Sender<ClientEvent>, VotingStatus)> =
+        let mut clients: HashMap<PlayerId, (mpsc::Sender<ClientEvent>, VotingStatus)> =
             GameLobby::access_game_data(&lobby_sender, |game_data, clients| {
                 let mut ret_clients = HashMap::new();
                 for (player_id, player) in game_data.players.iter() {
@@ -240,7 +237,7 @@ impl GameRunner {
                 .await?;
             id_futs.push(async move { (id, id_receive.await) });
         }
-        let mut interaction_ids: HashMap<u64, u64> = HashMap::new();
+        let mut interaction_ids: HashMap<PlayerId, InteractionId> = HashMap::new();
         while let Some((user_id, interaction_id)) = id_futs.next().await {
             let interaction_id = interaction_id?;
             interaction_ids.insert(user_id, interaction_id);
@@ -323,7 +320,7 @@ impl GameRunner {
         }
 
         //Send the result to all clients and return it
-        let vote_result: Vec<(u64, u64)> = clients
+        let vote_result: Vec<(PlayerId, PlayerId)> = clients
             .iter()
             .filter_map(|(client_id, (_, voting_status))| match voting_status {
                 VotingStatus::VoteFinished(vote) => Some((*client_id, *vote)),
