@@ -13,7 +13,10 @@ use werewolf_rs::{
     util::{InteractionId, PlayerId},
 };
 
-use super::{GameConfig, GameLobby, GameLobbyEvent, Player, client_manager::ClientEvent, roles::ServerRoleDelegator};
+use super::{
+    client_manager::ClientEvent, roles::ServerRoleDelegator, GameConfig, GameLobby, GameLobbyEvent,
+    Player,
+};
 
 /*
 A struct that handles the game logic.
