@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-mod lobby;
+mod game;
 mod lobby_manager;
 mod util;
 

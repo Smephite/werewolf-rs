@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, mem};
+use std::{cmp::Ordering, collections::HashMap};
 
 use anyhow::Error;
 use futures::{stream::FuturesUnordered, Future, StreamExt};
@@ -13,9 +13,7 @@ use werewolf_rs::{
     util::{InteractionId, PlayerId},
 };
 
-use super::{
-    client_manager::ClientEvent, roles::ServerRole, GameConfig, GameLobby, GameLobbyEvent, Player,
-};
+use super::{GameConfig, GameLobby, GameLobbyEvent, Player, client_manager::ClientEvent, roles::ServerRoleDelegator};
 
 /*
 A struct that handles the game logic.
@@ -145,7 +143,7 @@ impl GameRunner {
                     let role = role.clone();
                     let lobby_sender = self.lobby_sender.clone();
                     self.spawn_task(async move {
-                        role.run_night_turn(lobby_sender).await?;
+                        role.run_night_turn(&lobby_sender).await?;
                         finish_send.send(()).await?;
                         Ok(())
                     })
@@ -437,6 +435,5 @@ impl GameRunner {
             })
             .await?;
         todo!();
-        Ok(())
     }
 }

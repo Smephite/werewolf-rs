@@ -2,7 +2,7 @@ mod client_manager;
 mod game_runner;
 mod roles;
 
-use crate::lobby::game_runner::GameRunner;
+use crate::game::game_runner::GameRunner;
 
 use super::{
     lobby_manager::LobbyManagerEvent,

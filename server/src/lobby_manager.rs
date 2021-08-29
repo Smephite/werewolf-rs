@@ -1,5 +1,5 @@
 use crate::{
-    lobby::{GameLobby, GameLobbyEvent},
+    game::{GameLobby, GameLobbyEvent},
     util::{WsReceiver, WsSender},
 };
 use std::collections::HashMap;
