@@ -30,9 +30,9 @@ pub enum GameLobbyEvent {
         client_id: PlayerId,
     },
     StartGame {
-        client_id: PlayerId,
+        requested_by: PlayerId,
     },
-    PlayerDied(PlayerId, CauseOfDeath),
+    KillPlayer(PlayerId, CauseOfDeath),
     //Kill all dying players. This happens at the end of each night
     ApplyDeaths,
     //Send an update to all connected clients with the updated game data
@@ -139,7 +139,9 @@ impl GameLobby {
                     self.clients.remove(&client_id);
                     self.send_update().await;
                 }
-                GameLobbyEvent::StartGame { client_id } => {
+                GameLobbyEvent::StartGame {
+                    requested_by: client_id,
+                } => {
                     let player = self.game_data.players.get(&client_id).unwrap();
                     if player.is_lobby_host {
                         let game_runner = GameRunner::new(
@@ -154,11 +156,11 @@ impl GameLobby {
                 }
                 GameLobbyEvent::ApplyDeaths => {
                     for (player, cause) in mem::take(&mut self.game_data.dying_players) {
-                        self.player_died(player, cause).await;
+                        self.kill_player(player, cause).await;
                     }
                 }
-                GameLobbyEvent::PlayerDied(id, cause) => {
-                    self.player_died(id, cause).await;
+                GameLobbyEvent::KillPlayer(id, cause) => {
+                    self.kill_player(id, cause).await;
                 }
                 GameLobbyEvent::SendUpdate => {
                     self.send_update().await;
@@ -180,8 +182,7 @@ impl GameLobby {
     ) -> Result<R, Error>
     where
         F: FnOnce(&mut GameData, &HashMap<PlayerId, mpsc::Sender<ClientEvent>>) -> R
-            + Send
-            + Sync
+            + Send + Sync
             + 'static,
         R: Send + 'static,
     {
@@ -213,8 +214,8 @@ impl GameLobby {
         }
     }
 
-    async fn player_died(&mut self, id: PlayerId, cause: CauseOfDeath) {
-        if let Some(player) = self.game_data.players.get(&id) {
+    async fn kill_player(&mut self, id: PlayerId, cause: CauseOfDeath) {
+        if let Some(player) = self.game_data.players.get_mut(&id) {
             for sender in self.clients.values() {
                 let packet =
                     PacketToClient::PlayerDied(id, cause.clone(), player.role_data.get_role());
@@ -222,6 +223,9 @@ impl GameLobby {
                     error!("Error sending PlayerDied packet to client manager");
                 }
             }
+            player.is_alive = false;
+        } else {
+            warn!("Tried to kill non-existing player");
         }
     }
 }

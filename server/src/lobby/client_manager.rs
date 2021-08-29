@@ -24,7 +24,6 @@ pub enum ClientEvent {
         mpsc::Sender<(PlayerId, InteractionResponse)>,
         oneshot::Sender<InteractionId>,
     ),
-    //Send an interaction followup for the interaction with the given id
     FollowupInteraction(InteractionId, InteractionFollowup),
     CloseInteraction(InteractionId),
     SendPacket(PacketToClient),
@@ -202,7 +201,7 @@ impl ClientManager {
                                     }
                                 }
                                 PacketToServer::StartGame => {
-                                    self.game_lobby_send.send(GameLobbyEvent::StartGame { client_id: self.client_id} ).await.unwrap();
+                                    self.game_lobby_send.send(GameLobbyEvent::StartGame { requested_by: self.client_id} ).await.unwrap();
                                 }
                                 PacketToServer::Unknown | PacketToServer::JoinLobby(_) | PacketToServer::CreateNewLobby => {
                                     warn!("Received unknown/invalid packet from client in game lobby");
