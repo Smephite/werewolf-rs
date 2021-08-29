@@ -395,7 +395,11 @@ impl GameRunner {
     /*
     Runs a unanimous vote with the players who are participating and those who are selectable defined by the given functions
     */
-    async fn unanimous_vote<F>(lobby_sender: &mpsc::Sender<GameLobbyEvent>, mut participating: F, mut selectable: F) -> Result<(), Error>
+    async fn unanimous_vote<F>(
+        lobby_sender: &mpsc::Sender<GameLobbyEvent>,
+        mut participating: F,
+        mut selectable: F,
+    ) -> Result<(), Error>
     where
         F: FnMut(&Player) -> bool + Send + Sync + 'static,
     {
@@ -405,21 +409,33 @@ impl GameRunner {
             VotingFor(PlayerId),
             ConfirmedVote(PlayerId),
         }
-        let (clients, selectable) = GameLobby::access_game_data(lobby_sender, move |game_data, clients| {
-            let mut ret_clients: HashMap<PlayerId, (mpsc::Sender<ClientEvent>, VotingStatus)> = HashMap::new();
-            let mut ret_selectable: Vec<PlayerId> = Vec::new();
-            for (id, player) in game_data.players.iter() {
-                if participating(player) {
-                    ret_clients.insert(*id, (clients.get(id).unwrap().clone(), VotingStatus::NoVote));
-                } else if player.role_data.get_role()==Role::Spectator {
-                    ret_clients.insert(*id, (clients.get(id).unwrap().clone(), VotingStatus::NotParticipating));
+        let (clients, selectable) =
+            GameLobby::access_game_data(lobby_sender, move |game_data, clients| {
+                let mut ret_clients: HashMap<PlayerId, (mpsc::Sender<ClientEvent>, VotingStatus)> =
+                    HashMap::new();
+                let mut ret_selectable: Vec<PlayerId> = Vec::new();
+                for (id, player) in game_data.players.iter() {
+                    if participating(player) {
+                        ret_clients.insert(
+                            *id,
+                            (clients.get(id).unwrap().clone(), VotingStatus::NoVote),
+                        );
+                    } else if player.role_data.get_role() == Role::Spectator {
+                        ret_clients.insert(
+                            *id,
+                            (
+                                clients.get(id).unwrap().clone(),
+                                VotingStatus::NotParticipating,
+                            ),
+                        );
+                    }
+                    if selectable(player) {
+                        ret_selectable.push(*id);
+                    }
                 }
-                if selectable(player) {
-                    ret_selectable.push(*id);
-                }
-            }
-            (ret_clients, ret_selectable)
-        }).await?;
+                (ret_clients, ret_selectable)
+            })
+            .await?;
         todo!();
         Ok(())
     }

@@ -182,7 +182,8 @@ impl GameLobby {
     ) -> Result<R, Error>
     where
         F: FnOnce(&mut GameData, &HashMap<PlayerId, mpsc::Sender<ClientEvent>>) -> R
-            + Send + Sync
+            + Send
+            + Sync
             + 'static,
         R: Send + 'static,
     {
