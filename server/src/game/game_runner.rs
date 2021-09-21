@@ -15,7 +15,6 @@ use werewolf_rs::{
 
 use super::{
     client_manager::ClientEvent, roles::ServerRoleDelegator, GameConfig, GameLobby, GameLobbyEvent,
-    Player,
 };
 
 /*
@@ -271,7 +270,7 @@ impl GameRunner {
             sender
                 .send(ClientEvent::CreateInteraction(
                     InteractionRequest::NvBegin {
-                        nominatable_player_ids: clients
+                        nominatable_players: clients
                             .iter()
                             .filter(|(_, (_, voting_status))| {
                                 !matches!(voting_status, VotingStatus::NotVoting)
@@ -344,7 +343,7 @@ impl GameRunner {
         //Accept votes
         while let Some((client_id, response)) = interaction_receive.recv().await {
             match response {
-                InteractionResponse::NvVote { player_id } => {
+                InteractionResponse::NvVote { player: player_id } => {
                     let (_, voting_status) = clients.get_mut(&client_id).unwrap();
                     if let VotingStatus::NominationFinished(_) = voting_status {
                         *voting_status = VotingStatus::VoteFinished(player_id);
@@ -391,52 +390,5 @@ impl GameRunner {
                 .await?;
         }
         Ok(vote_result)
-    }
-
-    /*
-    Runs a unanimous vote with the players who are participating and those who are selectable defined by the given functions
-    */
-    async fn unanimous_vote<F>(
-        lobby_sender: &mpsc::Sender<GameLobbyEvent>,
-        mut participating: F,
-        mut selectable: F,
-    ) -> Result<(), Error>
-    where
-        F: FnMut(&Player) -> bool + Send + Sync + 'static,
-    {
-        enum VotingStatus {
-            NotParticipating,
-            NoVote,
-            VotingFor(PlayerId),
-            ConfirmedVote(PlayerId),
-        }
-        let (clients, selectable) =
-            GameLobby::access_game_data(lobby_sender, move |game_data, clients| {
-                let mut ret_clients: HashMap<PlayerId, (mpsc::Sender<ClientEvent>, VotingStatus)> =
-                    HashMap::new();
-                let mut ret_selectable: Vec<PlayerId> = Vec::new();
-                for (id, player) in game_data.players.iter() {
-                    if participating(player) {
-                        ret_clients.insert(
-                            *id,
-                            (clients.get(id).unwrap().clone(), VotingStatus::NoVote),
-                        );
-                    } else if player.role_data.get_role() == Role::Spectator {
-                        ret_clients.insert(
-                            *id,
-                            (
-                                clients.get(id).unwrap().clone(),
-                                VotingStatus::NotParticipating,
-                            ),
-                        );
-                    }
-                    if selectable(player) {
-                        ret_selectable.push(*id);
-                    }
-                }
-                (ret_clients, ret_selectable)
-            })
-            .await?;
-        todo!();
     }
 }

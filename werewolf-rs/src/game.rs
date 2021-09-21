@@ -10,6 +10,7 @@ The roles that a client in werewolf may have
 pub enum Role {
     Spectator,
     Villager,
+    Werewolf,
 }
 
 /*
@@ -19,6 +20,7 @@ The data that is associated to the role of a player. Note that this is usually n
 pub enum RoleData {
     Spectator,
     Villager,
+    Werewolf,
 }
 
 /*
@@ -49,6 +51,7 @@ pub enum RoleInfo {
 pub enum CauseOfDeath {
     Unknown,
     VillageVote,
+    Werewolves,
 }
 
 impl Role {
@@ -62,6 +65,7 @@ impl Role {
         match self {
             Self::Spectator => Vec::new(),
             Self::Villager => Vec::new(),
+            Self::Werewolf => Vec::new(),
         }
     }
 }
@@ -71,6 +75,7 @@ impl RoleData {
         match role {
             Role::Spectator => Self::Spectator,
             Role::Villager => Self::Villager,
+            Role::Werewolf => Self::Werewolf,
         }
     }
 
@@ -78,6 +83,7 @@ impl RoleData {
         match self {
             Self::Spectator => Role::Spectator,
             Self::Villager => Role::Villager,
+            Self::Werewolf => Role::Werewolf,
         }
     }
 }

@@ -1,5 +1,6 @@
 mod spectator;
 mod villager;
+mod werewolf;
 
 use anyhow::Error;
 use async_trait::async_trait;
@@ -40,6 +41,7 @@ impl ServerRoleDelegator for Role {
         match self {
             Role::Spectator => Box::new(spectator::Spectator),
             Role::Villager => Box::new(villager::Villager),
+            Role::Werewolf => Box::new(werewolf::Werewolf),
         }
     }
 }

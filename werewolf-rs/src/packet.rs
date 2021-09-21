@@ -64,20 +64,29 @@ The data that can be part of an interation. The interactions are:
     Each client can nominate a player (but doesn't have to).
     Afterwards, everyone can vote for one of the nominated players.
     There has to be at least one nomination before anyone can choose to nominate no one.
+- WerewolfVote (Wv)
+    Each werewolf can vote for a player (and change their vote at any time).
+    Once all werewolves vote for the same player, they can lock in their choice to end the vote
 */
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum InteractionRequest {
     NvBegin {
-        nominatable_player_ids: Vec<PlayerId>,
+        nominatable_players: Vec<PlayerId>,
+        can_vote: bool,
+    },
+    WvBegin {
+        selectable_players: Vec<PlayerId>,
         can_vote: bool,
     },
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum InteractionResponse {
     NvNominate { nominated_player: Option<PlayerId> },
-    NvVote { player_id: PlayerId },
+    NvVote { player: PlayerId },
+    WvVote { vote: PlayerId },
+    WvLockVote,
 }
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum InteractionFollowup {
     NvNewNomination {
         nominated_player: Option<PlayerId>,
@@ -87,5 +96,16 @@ pub enum InteractionFollowup {
     NvVoteFinished {
         //(voter, vote) tuples for all votes
         votes: Vec<(PlayerId, PlayerId)>,
+    },
+    WvNewVote {
+        vote: PlayerId,
+        voted_by: PlayerId,
+    },
+    WvLockedVote {
+        vote: PlayerId,
+        voted_by: PlayerId,
+    },
+    WvVoteFinished {
+        vote: Option<PlayerId>,
     },
 }
