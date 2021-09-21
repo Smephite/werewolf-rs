@@ -1,5 +1,5 @@
 use super::{GameData, GameLobbyEvent};
-use crate::util::{send_logging, WsReceiver, WsSender};
+use crate::util::{WsReceiver, WsSender, generate_id, send_logging};
 use futures::{SinkExt, StreamExt};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::{
@@ -12,7 +12,7 @@ use werewolf_rs::{
         InteractionFollowup, InteractionRequest, InteractionResponse, PacketToClient,
         PacketToServer,
     },
-    util::{Id, InteractionId, LobbyId, PlayerId},
+    util::{InteractionId, LobbyId, PlayerId},
 };
 
 pub enum ClientEvent {
@@ -150,7 +150,7 @@ impl ClientManager {
                                     self.packet_send.send(PacketToClient::GameUpdate(game_info)).await.unwrap();
                                 },
                                 ClientEvent::CreateInteraction(data, response_channel, id_oneshot) => {
-                                    let interaction_id = Id::new(&self.interactions);
+                                    let interaction_id = generate_id(&self.interactions);
                                     self.interactions.insert(interaction_id, response_channel);
                                     id_oneshot.send(interaction_id).ok();
                                     self.packet_send.send(PacketToClient::InteractionRequest {

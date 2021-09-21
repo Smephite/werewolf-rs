@@ -2,7 +2,7 @@ mod client_manager;
 mod game_runner;
 mod roles;
 
-use crate::game::game_runner::GameRunner;
+use crate::{game::game_runner::GameRunner, util::generate_id};
 
 use super::{
     lobby_manager::LobbyManagerEvent,
@@ -15,7 +15,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use werewolf_rs::{
     game::{CauseOfDeath, Role, RoleData},
     packet::PacketToClient,
-    util::{Id, LobbyId, PlayerId},
+    util::{LobbyId, PlayerId},
 };
 
 type GameDataFunction =
@@ -115,7 +115,7 @@ impl GameLobby {
         while let Some(event) = self.receiver.recv().await {
             match event {
                 GameLobbyEvent::NewConnection { ws_read, ws_write } => {
-                    let client_id = Id::new(&self.clients);
+                    let client_id = generate_id(&self.clients);
                     let (client_manager, client_sender) = ClientManager::new(
                         self.id,
                         client_id,

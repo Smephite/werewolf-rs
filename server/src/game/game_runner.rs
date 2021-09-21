@@ -204,7 +204,7 @@ impl GameRunner {
                     .await?;
             }
         }
-        todo!();
+        Ok(())
     }
 
     //Spawn a new task that stops when the game is cancelled

@@ -1,6 +1,5 @@
-use std::{collections::HashMap, fmt::Debug, hash::Hash, marker::PhantomData};
+use std::{fmt::Debug, hash::Hash, marker::PhantomData};
 
-use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 mod id_type {
@@ -23,16 +22,8 @@ pub struct Id<T> {
 }
 
 impl<T> Id<T> {
-    pub fn new<V>(used_ids: &HashMap<Id<T>, V>) -> Self {
-        loop {
-            let id = Id {
-                value: rand::thread_rng().gen(),
-                id_type: PhantomData,
-            };
-            if !used_ids.contains_key(&id) {
-                return id;
-            }
-        }
+    pub fn new(value: u64) -> Self {
+        Id { value, id_type: PhantomData }
     }
 }
 
