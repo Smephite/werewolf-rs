@@ -1,5 +1,16 @@
 use yew::prelude::*;
 
-pub fn render() -> Html {
-    html! {"Home"}
+pub struct Home {}
+
+impl Component for Home {
+    type Message = ();
+    type Properties = ();
+
+    fn create(_: &Context<Self>) -> Self {
+        Self {}
+    }
+
+    fn view(&self, _: &Context<Self>) -> Html {
+        html! { "Home" }
+    }
 }

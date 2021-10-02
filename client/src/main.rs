@@ -1,6 +1,8 @@
 mod pages;
-mod view;
+mod route;
+
+use route::Model;
 
 fn main() {
-    view::start();
+    yew::start_app::<Model>();
 }

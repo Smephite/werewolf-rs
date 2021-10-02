@@ -1123,7 +1123,7 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 [[package]]
 name = "yew"
 version = "0.18.0"
-source = "git+https://github.com/yewstack/yew.git#650c438a30d75c1fb587d1cb8ea67d8f38bf351a"
+source = "git+https://github.com/yewstack/yew.git#ae2ebc977616480e457085b367a0a07289461845"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
@@ -1141,7 +1141,7 @@ dependencies = [
 [[package]]
 name = "yew-macro"
 version = "0.18.0"
-source = "git+https://github.com/yewstack/yew.git#650c438a30d75c1fb587d1cb8ea67d8f38bf351a"
+source = "git+https://github.com/yewstack/yew.git#ae2ebc977616480e457085b367a0a07289461845"
 dependencies = [
  "boolinator",
  "lazy_static",
@@ -1153,7 +1153,7 @@ dependencies = [
 [[package]]
 name = "yew-router"
 version = "0.15.0"
-source = "git+https://github.com/yewstack/yew.git#650c438a30d75c1fb587d1cb8ea67d8f38bf351a"
+source = "git+https://github.com/yewstack/yew.git#ae2ebc977616480e457085b367a0a07289461845"
 dependencies = [
  "gloo",
  "js-sys",
@@ -1169,7 +1169,7 @@ dependencies = [
 [[package]]
 name = "yew-router-macro"
 version = "0.15.0"
-source = "git+https://github.com/yewstack/yew.git#650c438a30d75c1fb587d1cb8ea67d8f38bf351a"
+source = "git+https://github.com/yewstack/yew.git#ae2ebc977616480e457085b367a0a07289461845"
 dependencies = [
  "proc-macro2",
  "quote",
