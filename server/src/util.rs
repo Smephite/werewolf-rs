@@ -3,7 +3,10 @@ use std::{collections::HashMap, pin::Pin};
 use anyhow::Error;
 use futures::{Sink, SinkExt, Stream};
 use rand::Rng;
-use werewolf_rs::{packet::{PacketToClient, PacketToServer}, util::Id};
+use werewolf_rs::{
+    packet::{PacketToClient, PacketToServer},
+    util::Id,
+};
 
 pub type WsSender = Pin<Box<dyn Sink<PacketToClient, Error = Error> + Send + Sync>>;
 pub type WsReceiver = Pin<Box<dyn Stream<Item = PacketToServer> + Send + Sync>>;

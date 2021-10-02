@@ -1,5 +1,5 @@
 use super::{GameData, GameLobbyEvent};
-use crate::util::{WsReceiver, WsSender, generate_id, send_logging};
+use crate::util::{generate_id, send_logging, WsReceiver, WsSender};
 use futures::{SinkExt, StreamExt};
 use std::{collections::HashMap, fmt::Debug};
 use tokio::{

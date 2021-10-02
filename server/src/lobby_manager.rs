@@ -1,4 +1,7 @@
-use crate::{game::{GameLobby, GameLobbyEvent}, util::{WsReceiver, WsSender, generate_id}};
+use crate::{
+    game::{GameLobby, GameLobbyEvent},
+    util::{generate_id, WsReceiver, WsSender},
+};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use tokio::sync::mpsc;

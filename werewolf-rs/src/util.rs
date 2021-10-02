@@ -23,7 +23,10 @@ pub struct Id<T> {
 
 impl<T> Id<T> {
     pub fn new(value: u64) -> Self {
-        Id { value, id_type: PhantomData }
+        Id {
+            value,
+            id_type: PhantomData,
+        }
     }
 }
 
