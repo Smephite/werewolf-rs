@@ -4,9 +4,9 @@ services:
         image: werewolfrs/server
         build: 
             context: .
-            dockerfile: ./Dockerfile_Server
+            dockerfile: ./Dockerfile.server
     client:
         image: werewolfrs/client
         build:
             context: .
-            dockerfile: ./Dockerfile_Client
+            dockerfile: ./Dockerfile.web
