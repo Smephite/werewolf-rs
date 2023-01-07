@@ -1,13 +1,8 @@
-#![allow(incomplete_features)]
-#![feature(specialization)]
-pub mod client_network_manager;
+mod pages;
+mod route;
 
-use crate::client_network_manager::ClientNetworkManager;
-use werewolf_rs::network_manager::NetworkManager;
-use werewolf_rs::packets::packet::*;
+use route::Model;
 
 fn main() {
-    let manager = ClientNetworkManager {};
-
-    let _ = manager.send_packet(&Packet::ToServer(ToServer::Pong("test!")));
+    yew::start_app::<Model>();
 }
